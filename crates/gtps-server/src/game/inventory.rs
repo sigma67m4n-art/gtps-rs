@@ -1,7 +1,6 @@
 use gtps_proto::cursor::{Reader, Result, Writer};
 use gtps_world::items;
 
-pub const EQUIPPED: u8 = 0x01;
 pub const MAX_STACK: u8 = 200;
 pub const DEFAULT_CAPACITY: u32 = 596;
 
@@ -103,6 +102,7 @@ impl Inventory {
         writer.into_vec()
     }
 
+    #[allow(dead_code)]
     pub fn decode(data: &[u8]) -> Result<Self> {
         let mut reader = Reader::new(data);
         let _version = reader.u8()?;

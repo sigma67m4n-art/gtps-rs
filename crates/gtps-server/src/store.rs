@@ -32,14 +32,4 @@ impl WorldStore {
     pub fn is_loaded(&self, name: &str) -> bool {
         self.worlds.contains_key(name)
     }
-
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.worlds.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.worlds.is_empty()
-    }
 }

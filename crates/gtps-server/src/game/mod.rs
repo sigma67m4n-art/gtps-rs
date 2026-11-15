@@ -7,8 +7,8 @@ use std::collections::HashMap;
 
 use gtps_enet::{Event, Host, Packet, PeerId};
 use gtps_proto::tank::{
-    TYPE_ITEM_ACTIVATE_OBJECT_REQUEST, TYPE_ITEM_CHANGE_OBJECT, TYPE_PING_REPLY,
-    TYPE_SEND_INVENTORY_STATE, TYPE_SEND_ITEM_DATABASE_DATA, TYPE_SEND_MAP_DATA,
+    TYPE_ITEM_ACTIVATE_OBJECT_REQUEST, TYPE_ITEM_CHANGE_OBJECT, TYPE_MODIFY_ITEM_INVENTORY,
+    TYPE_PING_REPLY, TYPE_SEND_INVENTORY_STATE, TYPE_SEND_ITEM_DATABASE_DATA, TYPE_SEND_MAP_DATA,
     TYPE_SEND_TILE_UPDATE_DATA, TYPE_STATE, TYPE_TILE_CHANGE_REQUEST,
 };
 use gtps_proto::{framing, ItemsDat, Message, TankPacket, Text, Variant, VariantList};
@@ -35,6 +35,10 @@ fn allocate(counter: &mut u32) -> u32 {
     let value = *counter;
     *counter = counter.wrapping_add(1);
     value
+}
+
+fn is_valid_world_name(name: &str) -> bool {
+    !name.is_empty() && name.len() <= 24 && name.chars().all(|c| c.is_ascii_alphanumeric())
 }
 
 fn load_items(config: &Config) -> Option<ItemsDat> {
@@ -149,8 +153,14 @@ impl Game {
         session.inventory.set_capacity(capacity);
         session.stage = Stage::LoggedIn;
 
+        let verb = if request.is_transfer() {
+            "transferred in"
+        } else {
+            "logged in"
+        };
+
         logging::info(format!(
-            "peer {} logged in as {name} (user {user_id})",
+            "peer {} {verb} as {name} (user {user_id})",
             peer.index()
         ));
 
@@ -204,6 +214,13 @@ impl Game {
     }
 
     fn enter_world(&mut self, peer: PeerId, world_name: &str) {
+        if !is_valid_world_name(world_name) {
+            logging::warn(format!("peer {} asked for an invalid world name", peer.index()));
+            let list = login::failed_to_enter();
+            self.send_variant(peer, &list, framing::NET_ID_BROADCAST, 0);
+            return;
+        }
+
         self.leave_current_world(peer);
 
         let (spawn_x, spawn_y) = world::spawn_position(gtps_world::world::DOOR_ROW);
@@ -219,7 +236,13 @@ impl Game {
         session.pos_y = spawn_y;
         session.stage = Stage::InGame;
 
+        let generated = !self.worlds.is_loaded(world_name);
         self.worlds.ensure(world_name);
+
+        if generated {
+            logging::info(format!("generated world {world_name}"));
+        }
+
         let map = gtps_world::codec::encode(
             self.worlds
                 .get(world_name)
@@ -244,6 +267,13 @@ impl Game {
         }
 
         if let Some(me) = &me {
+            logging::debug(format!(
+                "peer {} carries {}/{} inventory slots",
+                peer.index(),
+                me.inventory.items().len(),
+                me.inventory.capacity()
+            ));
+
             self.send_spawn(peer, world::spawn_string(me, true));
 
             let inventory = me.inventory.encode();
@@ -305,6 +335,33 @@ impl Game {
         };
 
         let item = u16::try_from(tank.int_data).unwrap_or(0);
+
+        if item != 0 {
+            let available = self
+                .sessions
+                .get(&peer)
+                .is_some_and(|stored| stored.inventory.count_of(item) > 0);
+
+            if !available {
+                return;
+            }
+
+            let taken = self
+                .sessions
+                .get_mut(&peer)
+                .is_some_and(|stored| stored.inventory.remove(item, 1));
+
+            if !taken {
+                return;
+            }
+
+            let mut modify = TankPacket::new(TYPE_MODIFY_ITEM_INVENTORY);
+            modify.net_id = session.net_id;
+            modify.int_data = i32::from(item);
+            modify.secondary_id = -1;
+            self.send_tank(peer, &modify, &[]);
+        }
+
         let tile = if item == 0 {
             gtps_world::Tile::default()
         } else {
