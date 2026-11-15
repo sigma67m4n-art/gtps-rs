@@ -53,7 +53,10 @@ mod tests {
         let parsed = ItemsDat::parse(items.raw().to_vec()).unwrap();
         assert_eq!(parsed.count(), 60011);
         assert_eq!(parsed.get(60000).unwrap().kind, 20);
-        assert_eq!(parsed.get(60004).unwrap().kind, parsed.get(7188).unwrap().kind);
+        assert_eq!(
+            parsed.get(60004).unwrap().kind,
+            parsed.get(7188).unwrap().kind
+        );
         assert!(!parsed.get(60006).unwrap().available);
         assert_eq!(parsed.get(12600).unwrap().kind, 8);
         assert!(parsed.get(60010).unwrap().available);

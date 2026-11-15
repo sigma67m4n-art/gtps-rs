@@ -156,9 +156,13 @@ impl ItemsDat {
             if u32::from(item.id) < count || item.name.len() > u16::MAX as usize {
                 return Err(ProtoError::new("invalid custom item ID or name"));
             }
-            let template = self.get(item.template).ok_or_else(|| ProtoError::new("missing item template"))?;
+            let template = self
+                .get(item.template)
+                .ok_or_else(|| ProtoError::new("missing item template"))?;
             while count < u32::from(item.id) {
-                let empty = self.get(0).ok_or_else(|| ProtoError::new("missing empty item template"))?;
+                let empty = self
+                    .get(0)
+                    .ok_or_else(|| ProtoError::new("missing empty item template"))?;
                 let mut record = self.record(empty, count, "", None)?;
                 record[6] = 0;
                 raw.extend_from_slice(&record);
@@ -172,14 +176,25 @@ impl ItemsDat {
         Ok(())
     }
 
-    fn record(&self, template: &ItemDefinition, id: u32, name: &str, texture: Option<(&str, u32, u8, u8)>) -> Result<Vec<u8>> {
+    fn record(
+        &self,
+        template: &ItemDefinition,
+        id: u32,
+        name: &str,
+        texture: Option<(&str, u32, u8, u8)>,
+    ) -> Result<Vec<u8>> {
         let mut record = self.raw[template.offset..template.offset + 8].to_vec();
         record[..4].copy_from_slice(&id.to_le_bytes());
         let key = b"PBG892FXX982ABC*";
         record.extend_from_slice(&(name.len() as u16).to_le_bytes());
-        record.extend(name.bytes().enumerate().map(|(index, byte)| byte ^ key[(id as usize + index) % key.len()]));
+        record.extend(
+            name.bytes()
+                .enumerate()
+                .map(|(index, byte)| byte ^ key[(id as usize + index) % key.len()]),
+        );
         if let Some((path, hash, x, y)) = texture {
-            let length = u16::try_from(path.len()).map_err(|_| ProtoError::new("texture path too long"))?;
+            let length =
+                u16::try_from(path.len()).map_err(|_| ProtoError::new("texture path too long"))?;
             record.extend_from_slice(&length.to_le_bytes());
             record.extend_from_slice(path.as_bytes());
             let properties = record.len();
@@ -318,7 +333,8 @@ mod tests {
 
     #[test]
     fn custom_records_rekey_names_and_encode_texture_coordinates() {
-        let mut db = super::ItemsDat::parse(include_bytes!("../../../data/items.dat").to_vec()).unwrap();
+        let mut db =
+            super::ItemsDat::parse(include_bytes!("../../../data/items.dat").to_vec()).unwrap();
         let original = db.raw.clone();
         let name = "White Gem Lock";
         db.append_custom(&[super::CustomItem {
@@ -326,18 +342,33 @@ mod tests {
             template: 7188,
             name,
             texture: Some(("custom-icons.rttex", 123456, 2, 0)),
-        }]).unwrap();
+        }])
+        .unwrap();
         assert_eq!(&db.raw[6..original.len()], &original[6..]);
         let definition = db.get(60004).unwrap();
         let encrypted = &db.raw[definition.offset + 10..definition.texture_offset];
         let key = b"PBG892FXX982ABC*";
-        let decoded: Vec<_> = encrypted.iter().enumerate().map(|(index, byte)| byte ^ key[(60004 + index) % key.len()]).collect();
+        let decoded: Vec<_> = encrypted
+            .iter()
+            .enumerate()
+            .map(|(index, byte)| byte ^ key[(60004 + index) % key.len()])
+            .collect();
         assert_eq!(decoded, name.as_bytes());
         let properties = definition.properties_offset;
-        assert_eq!(&db.raw[properties..properties + 4], &123456u32.to_le_bytes());
+        assert_eq!(
+            &db.raw[properties..properties + 4],
+            &123456u32.to_le_bytes()
+        );
         assert_eq!(&db.raw[properties + 9..properties + 12], &[2, 0, 1]);
         let snapshot = db.raw.clone();
-        assert!(db.append_custom(&[super::CustomItem { id: 10, template: 2, name: "Invalid", texture: None }]).is_err());
+        assert!(db
+            .append_custom(&[super::CustomItem {
+                id: 10,
+                template: 2,
+                name: "Invalid",
+                texture: None
+            }])
+            .is_err());
         assert_eq!(db.raw, snapshot);
     }
 }

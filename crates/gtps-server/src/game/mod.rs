@@ -6,6 +6,8 @@ pub mod cheats;
 pub mod economy;
 mod effects;
 pub mod farming;
+#[cfg(test)]
+mod integration_tests;
 pub mod inventory;
 pub mod locks;
 pub mod login;
@@ -14,8 +16,6 @@ pub mod session;
 pub mod shop;
 pub mod tools;
 pub mod world;
-#[cfg(test)]
-mod integration_tests;
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

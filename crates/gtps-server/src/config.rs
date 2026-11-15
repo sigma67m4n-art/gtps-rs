@@ -44,7 +44,8 @@ impl Default for Config {
             motd: "Welcome to gtps-rs".to_string(),
             cdn_host: "127.0.0.1:8080".to_string(),
             cdn_path: "game/".to_string(),
-            vanilla_cdn_url: "https://ubistatic-a.akamaihd.net/0098/15230125103/cache/game/".to_string(),
+            vanilla_cdn_url: "https://ubistatic-a.akamaihd.net/0098/15230125103/cache/game/"
+                .to_string(),
             max_peers: 1024,
             channels: 2,
             items_path: "data/items.dat".to_string(),
