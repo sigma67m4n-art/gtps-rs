@@ -1,0 +1,9 @@
+[package]
+name = "gtps-proto"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Growtopia wire protocol codecs (tank packets, variants, text, items.dat)"
+
+[dependencies]

@@ -1,0 +1,6 @@
+/target
+/.research
+/data/*
+!/data/.gitkeep
+*.dat
+.DS_Store

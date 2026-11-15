@@ -1,0 +1,10 @@
+[package]
+name = "gtps-world"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Growtopia world model, generation and binary serialization"
+
+[dependencies]
+gtps-proto.workspace = true

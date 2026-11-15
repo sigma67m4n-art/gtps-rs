@@ -1,0 +1,16 @@
+[package]
+name = "gtps-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Growtopia private server binary"
+
+[[bin]]
+name = "gtps-server"
+path = "src/main.rs"
+
+[dependencies]
+gtps-enet.workspace = true
+gtps-proto.workspace = true
+gtps-world.workspace = true
