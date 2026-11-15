@@ -82,8 +82,8 @@ command. Add equipment entries in `game/tools.rs` to extend the catalog.
 | --- | --- | --- | --- |
 | Rayman's Fist | 50,000 | 3 | normal |
 | Death's Scythe | 250,000 | 1 | 1 |
-| Legendary Rayman | 25,000,000 | 7 | 1 |
-| Mythical Rayman | 750,000,000 | 14 | 1 |
+| Legendary Infinity Rayman's Fist | 25,000,000 | 7 | 1 |
+| Mythical Infinity Rayman's Fist | 750,000,000 | 10 | 1 |
 | MAGPLANT 5000 | 75,000 | — | — |
 
 Equipment prices have no extra tax. Effects require ownership and equipping.
@@ -146,8 +146,8 @@ outside the vanilla database to avoid overwriting existing items:
 
 | Item | ID |
 | --- | --- |
-| Legendary Rayman | 60000 |
-| Mythical Rayman | 60002 |
+| Legendary Infinity Rayman's Fist | 60000 |
+| Mythical Infinity Rayman's Fist | 60002 |
 | White Gem Lock | 60004 |
 | Ultra World Spray | 60006 |
 | Small Blast (50×50) | 60008 |

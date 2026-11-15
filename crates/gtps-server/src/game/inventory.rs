@@ -154,16 +154,21 @@ impl Inventory {
 
 #[cfg(test)]
 mod tests {
-    use super::{Inventory,MAX_STACK};
+    use super::{Inventory, MAX_STACK};
 
     #[test]
     fn starter_and_stack_limit_round_trip() {
         let mut inventory = Inventory::starter();
-        assert_eq!(inventory.count_of(542),250);
-        assert_eq!(inventory.count_of(98),1);
-        assert_eq!(inventory.count_of(818),1);
-        assert!(!inventory.add(542,1));
-        assert_eq!(Inventory::decode(&inventory.encode()).unwrap().count_of(542),250);
+        assert_eq!(inventory.count_of(542), 250);
+        assert_eq!(inventory.count_of(98), 1);
+        assert_eq!(inventory.count_of(818), 1);
+        assert!(!inventory.add(542, 1));
+        assert_eq!(
+            Inventory::decode(&inventory.encode())
+                .unwrap()
+                .count_of(542),
+            250
+        );
     }
     use gtps_world::items;
 

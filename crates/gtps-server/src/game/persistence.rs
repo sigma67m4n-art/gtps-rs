@@ -38,9 +38,13 @@ impl PlayerState {
 
 impl Game {
     pub(super) fn checkpoint(&self) -> gtps_auth::Result<()> {
-        let players = self.sessions.values().filter(|s| s.user_id != 0)
+        let players = self
+            .sessions
+            .values()
+            .filter(|s| s.user_id != 0)
             .map(|s| Ok((s.user_id, serde_json::to_vec(&PlayerState::capture(s))?)))
             .collect::<gtps_auth::Result<Vec<_>>>()?;
-        self.auth.checkpoint(&players, &serde_json::to_vec(&self.worlds)?)
+        self.auth
+            .checkpoint(&players, &serde_json::to_vec(&self.worlds)?)
     }
 }

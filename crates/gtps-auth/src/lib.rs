@@ -237,9 +237,18 @@ mod tests {
     fn checkpoint_rolls_back_players_and_world_together() {
         let db = AuthStore::open(":memory:").unwrap();
         let account = db.register("Snapshot", "snapshot-password").unwrap();
-        db.checkpoint(&[(account.id,b"before".to_vec())], b"world-before").unwrap();
-        assert!(db.checkpoint(&[(account.id,b"after".to_vec()),(u32::MAX,b"invalid".to_vec())],b"world-after").is_err());
-        assert_eq!(db.load_state(account.id).unwrap().unwrap(),b"before");
-        assert_eq!(db.world_state().unwrap().unwrap(),b"world-before");
+        db.checkpoint(&[(account.id, b"before".to_vec())], b"world-before")
+            .unwrap();
+        assert!(db
+            .checkpoint(
+                &[
+                    (account.id, b"after".to_vec()),
+                    (u32::MAX, b"invalid".to_vec())
+                ],
+                b"world-after"
+            )
+            .is_err());
+        assert_eq!(db.load_state(account.id).unwrap().unwrap(), b"before");
+        assert_eq!(db.world_state().unwrap().unwrap(), b"world-before");
     }
 }

@@ -3,12 +3,12 @@ mod admin;
 pub mod blast;
 pub mod cheats;
 pub mod economy;
+mod effects;
 pub mod farming;
 pub mod inventory;
 pub mod locks;
 pub mod login;
 mod persistence;
-mod effects;
 pub mod session;
 pub mod shop;
 pub mod tools;
@@ -186,33 +186,59 @@ impl Game {
         {
             return;
         }
-        let Some(session) = self.sessions.get_mut(&peer) else { return; };
-        if session.auth_attempt.is_some_and(|time| time.elapsed() < Duration::from_secs(2)) { return; }
-        session.auth_attempt = Some(Instant::now());
-        let account = if let Some(encoded) = text.get("ltoken") {
-            gtps_auth::decode_login_token(encoded).and_then(|token| self.auth.verify_token(&token, true))
-        } else {
-            self.auth.login(text.get("tankIDName").unwrap_or(""), text.get("tankIDPass").unwrap_or(""))
-        };
-        let Ok(account) = account else {
-            self.console(peer, "Login failed. Register or sign in through the GrowID page.");
+        let Some(session) = self.sessions.get_mut(&peer) else {
             return;
         };
-        if self.auth.banned(account.id).unwrap_or(true) || self.sessions.values().any(|s| s.user_id == account.id) {
+        if session
+            .auth_attempt
+            .is_some_and(|time| time.elapsed() < Duration::from_secs(2))
+        {
+            return;
+        }
+        session.auth_attempt = Some(Instant::now());
+        let account = if let Some(encoded) = text.get("ltoken") {
+            gtps_auth::decode_login_token(encoded)
+                .and_then(|token| self.auth.verify_token(&token, true))
+        } else {
+            self.auth.login(
+                text.get("tankIDName").unwrap_or(""),
+                text.get("tankIDPass").unwrap_or(""),
+            )
+        };
+        let Ok(account) = account else {
+            self.console(
+                peer,
+                "Login failed. Register or sign in through the GrowID page.",
+            );
+            return;
+        };
+        if self.auth.banned(account.id).unwrap_or(true)
+            || self.sessions.values().any(|s| s.user_id == account.id)
+        {
             self.console(peer, "Account banned or already connected.");
             return;
         }
         let state = match self.auth.load_state(account.id) {
             Ok(Some(bytes)) => match serde_json::from_slice::<persistence::PlayerState>(&bytes) {
                 Ok(state) => Some(state),
-                Err(_) => { self.console(peer, "Account data could not be loaded."); return; }
+                Err(_) => {
+                    self.console(peer, "Account data could not be loaded.");
+                    return;
+                }
             },
             Ok(None) => None,
-            Err(_) => { self.console(peer, "Account database unavailable."); return; }
+            Err(_) => {
+                self.console(peer, "Account database unavailable.");
+                return;
+            }
         };
         let user_id = account.id;
         let name = account.name;
-        let country = text.get("country").filter(|value| value.len() == 2 && value.bytes().all(|c| c.is_ascii_alphabetic())).unwrap_or("us").to_string();
+        let country = text
+            .get("country")
+            .filter(|value| value.len() == 2 && value.bytes().all(|c| c.is_ascii_alphabetic()))
+            .unwrap_or("us")
+            .to_string();
         let gems = self.config.starting_gems.min(i32::MAX as u32);
         let capacity = self.config.inventory_capacity;
 
@@ -227,8 +253,12 @@ impl Game {
         session.inventory.set_capacity(capacity);
         session.stage = Stage::LoggedIn;
         session.role = admin::Role::from_value(account.role);
-        if let Some(state) = state { state.apply(session); }
-        else { session.inventory = inventory::Inventory::starter(); session.inventory.set_capacity(capacity.max(5)); }
+        if let Some(state) = state {
+            state.apply(session);
+        } else {
+            session.inventory = inventory::Inventory::starter();
+            session.inventory.set_capacity(capacity.max(5));
+        }
 
         logging::info(format!(
             "peer {} logged in as {name} (user {user_id})",
@@ -275,9 +305,15 @@ impl Game {
         let Some(message) = text.get("message") else {
             return;
         };
-        if message.len() > 256 { return; }
-        if self.admin_command(peer, message) { return; }
-        if self.sessions.get(&peer).is_some_and(|s| s.muted) { return; }
+        if message.len() > 256 {
+            return;
+        }
+        if self.admin_command(peer, message) {
+            return;
+        }
+        if self.sessions.get(&peer).is_some_and(|s| s.muted) {
+            return;
+        }
 
         match message.trim().to_lowercase().as_str() {
             "/cheats" => self.open_cheats(peer),
@@ -723,8 +759,14 @@ impl Game {
             .worlds
             .get(world_name)
             .map_or(gtps_world::WIDTH, |world| world.width);
-        let height = self.worlds.get(world_name).map_or(gtps_world::HEIGHT, |world| world.height);
-        let (spawn_x, spawn_y) = world::spawn_position(width, gtps_world::world::DOOR_ROW.min(height.saturating_sub(1)));
+        let height = self
+            .worlds
+            .get(world_name)
+            .map_or(gtps_world::HEIGHT, |world| world.height);
+        let (spawn_x, spawn_y) = world::spawn_position(
+            width,
+            gtps_world::world::DOOR_ROW.min(height.saturating_sub(1)),
+        );
         let net_id = allocate(&mut self.next_net_id) as i32;
 
         let Some(session) = self.sessions.get_mut(&peer) else {
@@ -808,7 +850,9 @@ impl Game {
     fn on_item_activate(&mut self, peer: PeerId, tank: &TankPacket) {
         let item = u16::try_from(tank.int_data).unwrap_or(0);
 
-        if tools::by_item(item).is_some_and(|tool| tool.reach > 0) || matches!(item, gtps_world::items::FIST | tools::PICKAXE) {
+        if tools::by_item(item).is_some_and(|tool| tool.reach > 0)
+            || matches!(item, gtps_world::items::FIST | tools::PICKAXE)
+        {
             if let Some(session) = self.sessions.get_mut(&peer) {
                 if session.inventory.count_of(item) > 0 {
                     session.equipped_hand = item;
@@ -823,7 +867,11 @@ impl Game {
         if item == tools::RIPPER_WINGS {
             if let Some(session) = self.sessions.get_mut(&peer) {
                 if session.inventory.count_of(item) > 0 {
-                    session.equipped_back = if session.equipped_back == item { 0 } else { item };
+                    session.equipped_back = if session.equipped_back == item {
+                        0
+                    } else {
+                        item
+                    };
                 }
             }
             self.send_character_state(peer);
@@ -940,7 +988,9 @@ impl Game {
         let Some(session) = self.sessions.get(&peer).cloned() else {
             return;
         };
-        if session.frozen { return; }
+        if session.frozen {
+            return;
+        }
         let Some(world_name) = session.world.clone() else {
             return;
         };
@@ -974,7 +1024,9 @@ impl Game {
         let Some(session) = self.sessions.get(&peer).cloned() else {
             return;
         };
-        if session.frozen { return; }
+        if session.frozen {
+            return;
+        }
         let Some(world_name) = session.world.clone() else {
             return;
         };
@@ -1004,11 +1056,14 @@ impl Game {
             if old.foreground == locks::TELEPHONE_ITEM {
                 self.open_telephone(peer);
             } else if old.foreground == tools::MAGPLANT {
-                self.open_magplant(peer,index);
+                self.open_magplant(peer, index);
             }
             return;
         }
-        if world.owner_user_id != 0 && world.owner_user_id != session.user_id && session.role != admin::Role::Owner {
+        if world.owner_user_id != 0
+            && world.owner_user_id != session.user_id
+            && session.role != admin::Role::Owner
+        {
             return;
         }
         if old.foreground == gtps_world::items::BEDROCK
@@ -1053,7 +1108,15 @@ impl Game {
                 let required = tools::hits(
                     &session.inventory,
                     session.equipped_hand,
-                    farmable.map_or_else(|| self.items.as_ref().and_then(|db| db.get(old.foreground)).map_or(5, |item| item.hits), |farm| farm.hits),
+                    farmable.map_or_else(
+                        || {
+                            self.items
+                                .as_ref()
+                                .and_then(|db| db.get(old.foreground))
+                                .map_or(5, |item| item.hits)
+                        },
+                        |farm| farm.hits,
+                    ),
                 );
                 let entry = self.worlds.entry_mut(&world_name);
                 let damage = entry.damage.entry(index).or_default();
@@ -1063,7 +1126,13 @@ impl Game {
                 }
                 entry.damage.remove(&index);
                 if let Some(farm) = farmable {
-                    if !self.sessions.get_mut(&peer).is_some_and(|stored| stored.inventory.add(farm.seed_id,1)) { return; }
+                    if !self
+                        .sessions
+                        .get_mut(&peer)
+                        .is_some_and(|stored| stored.inventory.add(farm.seed_id, 1))
+                    {
+                        return;
+                    }
                     reward = economy::payout(farm, economy::Yield::Break, 100, self.next_rand());
                 }
             }
@@ -1082,8 +1151,18 @@ impl Game {
             }
             let definition = self.items.as_ref().and_then(|db| db.get(item));
             let is_seed = definition.is_some_and(|item| item.kind == 19);
-            if definition.is_some_and(|definition| definition.kind == 20) || (is_seed && item != economy::highest().seed_id) { return; }
-            if is_seed && (!farming::can_plant(world, x, y) || !world.tile(x,y+1).and_then(|tile| self.items.as_ref()?.get(tile.foreground)).is_some_and(|item| matches!(item.collision,1 | 2))) {
+            if definition.is_some_and(|definition| definition.kind == 20)
+                || (is_seed && item != economy::highest().seed_id)
+            {
+                return;
+            }
+            if is_seed
+                && (!farming::can_plant(world, x, y)
+                    || !world
+                        .tile(x, y + 1)
+                        .and_then(|tile| self.items.as_ref()?.get(tile.foreground))
+                        .is_some_and(|item| matches!(item.collision, 1 | 2)))
+            {
                 self.console(peer, "Seeds need a block directly beneath them.");
                 return;
             }
@@ -1098,7 +1177,12 @@ impl Game {
                 Some(farm) => {
                     farming::plant(item, old.background, farm.grow_seconds, farming::now())
                 }
-                None if is_seed => farming::plant(item, old.background, definition.map_or(60, |item| item.grow_seconds), farming::now()),
+                None if is_seed => farming::plant(
+                    item,
+                    old.background,
+                    definition.map_or(60, |item| item.grow_seconds),
+                    farming::now(),
+                ),
                 None => gtps_world::Tile::new(item, old.background),
             }
         };
@@ -1123,7 +1207,7 @@ impl Game {
             self.worlds.remove_magplant(&world_name, index);
         }
         if reward > 0 {
-            self.award_gems(peer,reward);
+            self.award_gems(peer, reward);
         }
         self.send_inventory(peer);
         let payload = gtps_world::codec::encode_tile(&tile);
@@ -1148,7 +1232,9 @@ impl Game {
         };
 
         let uid = tank.int_data as u32;
-        if self.collect_gem(peer,uid) { return; }
+        if self.collect_gem(peer, uid) {
+            return;
+        }
         let Some(world) = self.worlds.get_mut(&world_name) else {
             return;
         };
@@ -1197,7 +1283,9 @@ impl Game {
         let Some(session) = self.sessions.get(&peer).cloned() else {
             return;
         };
-        if session.frozen { return; }
+        if session.frozen {
+            return;
+        }
         let Some(world_name) = session.world.clone() else {
             return;
         };
@@ -1253,7 +1341,7 @@ impl Game {
         }
 
         if let Some(gems) = reward.filter(|gems| *gems > 0) {
-            self.award_gems(peer,gems);
+            self.award_gems(peer, gems);
         }
     }
 

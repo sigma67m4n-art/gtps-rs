@@ -185,7 +185,7 @@ impl Host {
     #[must_use]
     pub fn peer_address(&self, peer: PeerId) -> Option<SocketAddr> {
         let raw = self.raw_peer(peer)?;
-        let mut buffer = [0i8; 64];
+        let mut buffer = [0 as core::ffi::c_char; 64];
 
         if unsafe { sys::gtps_enet_peer_ip(raw, buffer.as_mut_ptr(), buffer.len()) } != 0 {
             return None;

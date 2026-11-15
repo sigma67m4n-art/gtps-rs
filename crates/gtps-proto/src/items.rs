@@ -22,7 +22,9 @@ fn skip_string(reader: &mut Reader<'_>) -> Result<()> {
 
 fn definition(reader: &mut Reader<'_>, version: u16, expected: u32) -> Result<ItemDefinition> {
     let offset = reader.position();
-    if reader.u32()? != expected { return Err(ProtoError::new("unordered item ID")); }
+    if reader.u32()? != expected {
+        return Err(ProtoError::new("unordered item ID"));
+    }
     reader.skip(2)?;
     let kind = reader.u8()?;
     reader.skip(1)?;
@@ -36,29 +38,74 @@ fn definition(reader: &mut Reader<'_>, version: u16, expected: u32) -> Result<It
     reader.skip(1)?;
     skip_string(reader)?;
     reader.skip(8)?;
-    for _ in 0..4 { skip_string(reader)?; }
+    for _ in 0..4 {
+        skip_string(reader)?;
+    }
     reader.skip(16)?;
     let grow_seconds = reader.u32()?;
     reader.skip(4)?;
-    for _ in 0..3 { skip_string(reader)?; }
+    for _ in 0..3 {
+        skip_string(reader)?;
+    }
     reader.skip(80)?;
-    if version >= 11 { skip_string(reader)?; }
-    if version >= 12 { reader.skip(13)?; }
-    if version >= 13 { reader.skip(4)?; }
-    if version >= 14 { reader.skip(4)?; }
-    if version >= 15 { reader.skip(25)?; skip_string(reader)?; }
-    if version >= 16 { skip_string(reader)?; }
-    if version >= 17 { reader.skip(4)?; }
-    if version >= 18 { reader.skip(4)?; }
-    if version >= 19 { reader.skip(9)?; }
-    if version >= 21 { reader.skip(2)?; }
-    if version >= 22 { skip_string(reader)?; }
-    if version >= 23 { reader.skip(4)?; }
-    if version >= 24 { reader.skip(1)?; }
-    if version >= 25 { skip_string(reader)?; reader.skip(4)?; }
-    if version >= 26 { reader.skip(1)?; }
-    if version >= 27 { skip_string(reader)?; }
-    Ok(ItemDefinition { kind, collision, hits, grow_seconds, max_amount_offset, offset })
+    if version >= 11 {
+        skip_string(reader)?;
+    }
+    if version >= 12 {
+        reader.skip(13)?;
+    }
+    if version >= 13 {
+        reader.skip(4)?;
+    }
+    if version >= 14 {
+        reader.skip(4)?;
+    }
+    if version >= 15 {
+        reader.skip(25)?;
+        skip_string(reader)?;
+    }
+    if version >= 16 {
+        skip_string(reader)?;
+    }
+    if version >= 17 {
+        reader.skip(4)?;
+    }
+    if version >= 18 {
+        reader.skip(4)?;
+    }
+    if version >= 19 {
+        reader.skip(9)?;
+    }
+    if version >= 21 {
+        reader.skip(2)?;
+    }
+    if version >= 22 {
+        skip_string(reader)?;
+    }
+    if version >= 23 {
+        reader.skip(4)?;
+    }
+    if version >= 24 {
+        reader.skip(1)?;
+    }
+    if version >= 25 {
+        skip_string(reader)?;
+        reader.skip(4)?;
+    }
+    if version >= 26 {
+        reader.skip(1)?;
+    }
+    if version >= 27 {
+        skip_string(reader)?;
+    }
+    Ok(ItemDefinition {
+        kind,
+        collision,
+        hits,
+        grow_seconds,
+        max_amount_offset,
+        offset,
+    })
 }
 
 #[must_use]
@@ -93,8 +140,12 @@ impl ItemsDat {
             return Err(ProtoError::new("unsupported item database"));
         }
         let mut definitions = Vec::new();
-        for id in 0..count { definitions.push(definition(&mut reader,version,id)?); }
-        if !reader.is_empty() { return Err(ProtoError::new("trailing item database bytes")); }
+        for id in 0..count {
+            definitions.push(definition(&mut reader, version, id)?);
+        }
+        if !reader.is_empty() {
+            return Err(ProtoError::new("trailing item database bytes"));
+        }
 
         Ok(Self {
             raw,
@@ -122,8 +173,8 @@ impl ItemsDat {
         if let Some(definition) = self.definitions.get_mut(usize::from(block)) {
             definition.kind = 17;
             definition.hits = u32::from(hits);
-            self.raw[definition.offset+6] = 17;
-            self.raw[definition.max_amount_offset-8] = hits.saturating_mul(6);
+            self.raw[definition.offset + 6] = 17;
+            self.raw[definition.max_amount_offset - 8] = hits.saturating_mul(6);
         }
         self.hash = hash_data(&self.raw);
     }
@@ -172,26 +223,27 @@ mod tests {
     fn bundled_database_validates_all_records_and_hardness() {
         let raw = include_bytes!("../../../data/items.dat").to_vec();
         let db = super::ItemsDat::parse(raw.clone()).unwrap();
-        assert_eq!(db.count(),16434);
-        for (id,hits) in [(2,3),(4,4),(10,10),(340,7),(324,9),(5666,5)] {
-            assert_eq!(db.get(id).unwrap().hits,hits);
+        assert_eq!(db.count(), 16434);
+        for (id, hits) in [(2, 3), (4, 4), (10, 10), (340, 7), (324, 9), (5666, 5)] {
+            assert_eq!(db.get(id).unwrap().hits, hits);
         }
-        assert_eq!(db.get(3).unwrap().kind,19);
-        assert!(super::ItemsDat::parse(raw[..raw.len()-1].to_vec()).is_err());
+        assert_eq!(db.get(3).unwrap().kind, 19);
+        assert!(super::ItemsDat::parse(raw[..raw.len() - 1].to_vec()).is_err());
     }
 
     #[test]
     fn served_database_preserves_layout_after_stack_and_farm_changes() {
-        let mut db = super::ItemsDat::parse(include_bytes!("../../../data/items.dat").to_vec()).unwrap();
+        let mut db =
+            super::ItemsDat::parse(include_bytes!("../../../data/items.dat").to_vec()).unwrap();
         let old_hash = db.hash();
         db.set_stack_limit(250);
-        db.configure_farmable(542,6);
+        db.configure_farmable(542, 6);
         let reparsed = super::ItemsDat::parse(db.raw().to_vec()).unwrap();
-        assert_ne!(old_hash,reparsed.hash());
+        assert_ne!(old_hash, reparsed.hash());
         let pot = reparsed.get(542).unwrap();
-        assert_eq!((pot.kind,pot.hits),(17,6));
-        assert_eq!(reparsed.raw()[pot.max_amount_offset],250);
-        assert_eq!(reparsed.get(4).unwrap().hits,4);
+        assert_eq!((pot.kind, pot.hits), (17, 6));
+        assert_eq!(reparsed.raw()[pot.max_amount_offset], 250);
+        assert_eq!(reparsed.get(4).unwrap().hits, 4);
     }
 
     #[test]

@@ -35,16 +35,16 @@ pub const CATALOG: &[Tool] = &[
     },
     Tool {
         item: LEGENDARY_RAYMAN,
-        name: "Legendary Rayman Fist",
+        name: "Legendary Infinity Rayman's Fist",
         price: 25_000_000,
         reach: 7,
         one_hit: true,
     },
     Tool {
         item: MYTHICAL_RAYMAN,
-        name: "Mythical Rayman Fist",
+        name: "Mythical Infinity Rayman's Fist",
         price: 750_000_000,
-        reach: 14,
+        reach: 10,
         one_hit: true,
     },
     Tool {
@@ -108,7 +108,7 @@ mod tests {
             (DEATH_SCYTHE, 1, 1),
             (RAYMAN, 3, 6),
             (LEGENDARY_RAYMAN, 7, 1),
-            (MYTHICAL_RAYMAN, 14, 1),
+            (MYTHICAL_RAYMAN, 10, 1),
         ] {
             assert!(inventory.add(item, 1));
             assert_eq!(reach(&inventory, item), distance);

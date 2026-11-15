@@ -1,9 +1,9 @@
 use gtps_enet::PeerId;
 use std::time::Instant;
 
+use super::admin::Role;
 use crate::game::cheats::CheatState;
 use crate::game::inventory::Inventory;
-use super::admin::Role;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {

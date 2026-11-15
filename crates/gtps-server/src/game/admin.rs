@@ -3,38 +3,86 @@ use gtps_enet::PeerId;
 use gtps_proto::{framing, Text, Variant, VariantList};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Role { Player, Moderator, Owner }
+pub enum Role {
+    Player,
+    Moderator,
+    Owner,
+}
 
 impl Role {
     pub fn from_value(value: u8) -> Self {
-        match value { 2 => Self::Owner, 1 => Self::Moderator, _ => Self::Player }
+        match value {
+            2 => Self::Owner,
+            1 => Self::Moderator,
+            _ => Self::Player,
+        }
     }
 }
 
 fn dimensions(value: &str) -> Option<(usize, usize)> {
     let (x, y) = value.split_once('x')?;
     let (x, y) = (x.parse().ok()?, y.parse().ok()?);
-    ((10..=200).contains(&x) && (10..=200).contains(&y)).then_some((x,y))
+    ((10..=200).contains(&x) && (10..=200).contains(&y)).then_some((x, y))
 }
 
 impl Game {
     pub(super) fn admin_command(&mut self, peer: PeerId, message: &str) -> bool {
         let mut args = message.split_whitespace();
         let command = args.next().unwrap_or("").to_ascii_lowercase();
-        let Some(session) = self.sessions.get(&peer).cloned() else { return false; };
+        let Some(session) = self.sessions.get(&peer).cloned() else {
+            return false;
+        };
         if command == "/owner" {
-            if session.auth_attempt.is_some_and(|time| time.elapsed().as_secs() < 2) { return true; }
-            if let Some(stored) = self.sessions.get_mut(&peer) { stored.auth_attempt = Some(std::time::Instant::now()); }
+            if session
+                .auth_attempt
+                .is_some_and(|time| time.elapsed().as_secs() < 2)
+            {
+                return true;
+            }
+            if let Some(stored) = self.sessions.get_mut(&peer) {
+                stored.auth_attempt = Some(std::time::Instant::now());
+            }
             let key = args.next().unwrap_or("");
-            if !self.config.owner_key.is_empty() && key == self.config.owner_key && self.auth.set_role(session.user_id, 2).is_ok() {
-                if let Some(stored) = self.sessions.get_mut(&peer) { stored.role = Role::Owner; }
+            if !self.config.owner_key.is_empty()
+                && key == self.config.owner_key
+                && self.auth.set_role(session.user_id, 2).is_ok()
+            {
+                if let Some(stored) = self.sessions.get_mut(&peer) {
+                    stored.role = Role::Owner;
+                }
                 self.console(peer, "Owner role attached to your account.");
-            } else { self.console(peer, "Owner authentication failed."); }
+            } else {
+                self.console(peer, "Owner authentication failed.");
+            }
             return true;
         }
-        let moderator = matches!(command.as_str(), "/kick" | "/ban" | "/unban" | "/mute" | "/unmute" | "/freeze" | "/unfreeze" | "/summon" | "/goto" | "/who" | "/help");
-        let owner = matches!(command.as_str(), "/give" | "/drop" | "/clearworld" | "/cleardrop" | "/createworld" | "/setrole" | "/setgems");
-        if !moderator && !owner { return false; }
+        let moderator = matches!(
+            command.as_str(),
+            "/kick"
+                | "/ban"
+                | "/unban"
+                | "/mute"
+                | "/unmute"
+                | "/freeze"
+                | "/unfreeze"
+                | "/summon"
+                | "/goto"
+                | "/who"
+                | "/help"
+        );
+        let owner = matches!(
+            command.as_str(),
+            "/give"
+                | "/drop"
+                | "/clearworld"
+                | "/cleardrop"
+                | "/createworld"
+                | "/setrole"
+                | "/setgems"
+        );
+        if !moderator && !owner {
+            return false;
+        }
         if session.role < Role::Moderator || (owner && session.role != Role::Owner) {
             self.console(peer, "This command requires a higher role.");
             return true;
@@ -142,39 +190,84 @@ impl Game {
     }
 
     pub(super) fn refresh_world(&mut self, name: &str) {
-        let peers = self.world_peers(name,None);
-        for peer in peers { self.enter_world(peer,name); }
+        let peers = self.world_peers(name, None);
+        for peer in peers {
+            self.enter_world(peer, name);
+        }
     }
 
     pub(super) fn open_magplant(&mut self, peer: PeerId, index: usize) {
-        let Some(session) = self.sessions.get(&peer).cloned() else { return; };
-        let Some(name) = session.world else { return; };
-        let plant = self.worlds.entry_mut(&name).magplants.iter().find(|p| p.tile == index).copied();
-        let Some(plant) = plant else { return; };
+        let Some(session) = self.sessions.get(&peer).cloned() else {
+            return;
+        };
+        let Some(name) = session.world else {
+            return;
+        };
+        let plant = self
+            .worlds
+            .entry_mut(&name)
+            .magplants
+            .iter()
+            .find(|p| p.tile == index)
+            .copied();
+        let Some(plant) = plant else {
+            return;
+        };
         let maximum = locks::magplant_stock(plant.lock_item);
         let mut body = format!("add_label_with_icon|big|MAGPLANT 5000|left|{}|\nadd_textbox|Stock: {} / {maximum}|left|\nadd_button|get_remote|Get Remote|\n",tools::MAGPLANT,plant.stock);
-        if session.role == Role::Owner { body.push_str(&format!("add_button|refill|Add {maximum} Stock|\n")); }
+        if session.role == Role::Owner {
+            body.push_str(&format!("add_button|refill|Add {maximum} Stock|\n"));
+        }
         body.push_str("end_dialog|magplant|Close||\n");
-        if let Some(stored) = self.sessions.get_mut(&peer) { stored.magplant_dialog = Some((name,index)); }
-        self.send_variant(peer,&VariantList::new("OnDialogRequest").arg(Variant::String(body)),framing::NET_ID_BROADCAST,0);
+        if let Some(stored) = self.sessions.get_mut(&peer) {
+            stored.magplant_dialog = Some((name, index));
+        }
+        self.send_variant(
+            peer,
+            &VariantList::new("OnDialogRequest").arg(Variant::String(body)),
+            framing::NET_ID_BROADCAST,
+            0,
+        );
     }
 
     pub(super) fn magplant_return(&mut self, peer: PeerId, text: &Text) {
-        let Some(session) = self.sessions.get_mut(&peer) else { return; };
-        let Some((name,index)) = session.magplant_dialog.take() else { return; };
-        if session.world.as_ref() != Some(&name) { return; }
+        let Some(session) = self.sessions.get_mut(&peer) else {
+            return;
+        };
+        let Some((name, index)) = session.magplant_dialog.take() else {
+            return;
+        };
+        if session.world.as_ref() != Some(&name) {
+            return;
+        }
         let session = session.clone();
         let role = session.role;
-        let Some((x,y,range)) = self.farm_reach(&session) else { return; };
+        let Some((x, y, range)) = self.farm_reach(&session) else {
+            return;
+        };
         let entry = self.worlds.entry_mut(&name);
-        let Some((tx,ty)) = entry.world.coords(index) else { return; };
-        if x.abs_diff(tx) > range || y.abs_diff(ty) > range || entry.world.tiles[index].foreground != tools::MAGPLANT { return; }
-        let Some(plant) = entry.magplants.iter_mut().find(|p| p.tile == index) else { return; };
-        if super::shop::clicked(text,"refill") && role == Role::Owner { plant.stock = locks::magplant_stock(plant.lock_item); }
-        if super::shop::clicked(text,"get_remote") {
-            if let Some(stored) = self.sessions.get_mut(&peer) { stored.active_magplant = Some(index); stored.remote_hits = 0; }
+        let Some((tx, ty)) = entry.world.coords(index) else {
+            return;
+        };
+        if x.abs_diff(tx) > range
+            || y.abs_diff(ty) > range
+            || entry.world.tiles[index].foreground != tools::MAGPLANT
+        {
+            return;
         }
-        self.open_magplant(peer,index);
+        let Some(plant) = entry.magplants.iter_mut().find(|p| p.tile == index) else {
+            return;
+        };
+        if super::shop::clicked(text, "refill") && role == Role::Owner {
+            plant.stock = locks::magplant_stock(plant.lock_item);
+        }
+        if super::shop::clicked(text, "get_remote") {
+            if let Some(stored) = self.sessions.get_mut(&peer) {
+                stored.active_magplant = Some(index);
+                stored.remote_hits = 0;
+            }
+        }
+        self.open_magplant(peer, index);
     }
 }
 
@@ -183,7 +276,15 @@ mod tests {
     use super::dimensions;
     #[test]
     fn world_dimensions_reject_overflow_and_out_of_bounds() {
-        assert_eq!(dimensions("50x200"),Some((50,200)));
-        for value in ["0x50","201x50","50x-1","999999999999999999999x50","50x50x50"] { assert_eq!(dimensions(value),None); }
+        assert_eq!(dimensions("50x200"), Some((50, 200)));
+        for value in [
+            "0x50",
+            "201x50",
+            "50x-1",
+            "999999999999999999999x50",
+            "50x50x50",
+        ] {
+            assert_eq!(dimensions(value), None);
+        }
     }
 }
