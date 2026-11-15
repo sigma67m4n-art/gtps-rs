@@ -15,6 +15,20 @@ pub struct Tile {
     pub background: u16,
     pub parent: u16,
     pub flags: u16,
+    pub tree: Option<Tree>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Tree {
+    pub planted_at: u64,
+    pub grow_seconds: Option<u32>,
+    pub fruit: u8,
+}
+
+impl Tree {
+    pub fn mature(&self, now: u64) -> bool {
+        self.grow_seconds.is_some_and(|duration| now.saturating_sub(self.planted_at) >= u64::from(duration))
+    }
 }
 
 impl Tile {
@@ -25,6 +39,7 @@ impl Tile {
             background,
             parent: 0,
             flags: 0,
+            tree: None,
         }
     }
 

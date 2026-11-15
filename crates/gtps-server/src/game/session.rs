@@ -1,4 +1,5 @@
 use gtps_enet::PeerId;
+use std::time::Instant;
 
 use crate::game::cheats::CheatState;
 use crate::game::inventory::Inventory;
@@ -25,8 +26,14 @@ pub struct Session {
     pub inventory: Inventory,
     pub cheats: CheatState,
     pub active_magplant: Option<usize>,
+    pub remote_hits: u32,
     pub tax_credits: u64,
     pub growtokens: u32,
+    pub spray_tokens: u32,
+    pub equipped_hand: u16,
+    pub last_punch: Option<Instant>,
+    pub dialog: Option<(String, u64)>,
+    pub dialog_sequence: u64,
 }
 
 impl Session {
@@ -46,8 +53,14 @@ impl Session {
             inventory: Inventory::default(),
             cheats: CheatState::default(),
             active_magplant: None,
+            remote_hits: 0,
             tax_credits: 0,
             growtokens: 0,
+            spray_tokens: 0,
+            equipped_hand: 0,
+            last_punch: None,
+            dialog: None,
+            dialog_sequence: 0,
         }
     }
 

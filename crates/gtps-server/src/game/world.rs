@@ -43,8 +43,8 @@ pub fn remove_string(net_id: i32, user_id: u32) -> String {
 }
 
 #[must_use]
-pub fn spawn_position(door_row: usize) -> (f32, f32) {
-    let x = (gtps_world::WIDTH as f32 / 2.0) * 32.0 + 16.0;
+pub fn spawn_position(width: usize, door_row: usize) -> (f32, f32) {
+    let x = (width as f32 / 2.0) * 32.0 + 16.0;
     let y = (door_row as f32 - 1.0) * 32.0 + 16.0;
     (x, y)
 }

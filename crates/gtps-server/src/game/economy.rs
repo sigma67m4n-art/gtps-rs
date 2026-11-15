@@ -171,21 +171,32 @@ pub fn payout(farmable: &Farmable, kind: Yield, multiplier_percent: u32, roll: u
 
 #[must_use]
 pub fn cycle_gems(farmable: &Farmable, multiplier_percent: u32, roll: u32) -> u32 {
-    let harvest = payout(farmable, Yield::Harvest, multiplier_percent, roll)
-        * farmable.hits.saturating_sub(1);
-    let breaking = payout(farmable, Yield::Break, multiplier_percent, roll);
-
-    harvest + breaking
+    payout(farmable, Yield::Break, multiplier_percent, roll)
 }
 
 pub const GEMS_PER_GROWTOKEN: u64 = 100_000;
+pub const GEMS_PER_SPRAY_TOKEN: u64 = 1_000_000;
+
+pub const SPRAY_TOKEN_ICON: u16 = 4212;
+pub const ULTRA_WORLD_SPRAY: u16 = 13683;
+pub const ULTRA_WORLD_SPRAY_PRICE: u32 = 5;
+
+fn exchange(credits: u64, rate: u64) -> (u32, u64) {
+    let rate = rate.max(1);
+    let tokens = u32::try_from(credits / rate).unwrap_or(u32::MAX);
+
+    let spent = u64::from(tokens) * rate;
+    (tokens, credits - spent)
+}
 
 #[must_use]
 pub fn exchange_tokens(credits: u64) -> (u32, u64) {
-    let tokens = u32::try_from(credits / GEMS_PER_GROWTOKEN).unwrap_or(u32::MAX);
-    let spent = u64::from(tokens) * GEMS_PER_GROWTOKEN;
+    exchange(credits, GEMS_PER_GROWTOKEN)
+}
 
-    (tokens, credits - spent)
+#[must_use]
+pub fn exchange_spray_tokens(credits: u64) -> (u32, u64) {
+    exchange(credits, GEMS_PER_SPRAY_TOKEN)
 }
 
 #[cfg(test)]
@@ -242,7 +253,7 @@ mod tests {
     fn pot_o_gold_block_takes_five_to_six_hits() {
         let pot = highest();
         assert!((5..=6).contains(&pot.hits));
-        assert!(cycle_gems(pot, 100, 0) > pot.break_gems);
+        assert_eq!(cycle_gems(pot, 100, 0), pot.break_gems);
     }
 
     #[test]
@@ -290,5 +301,30 @@ mod tests {
         assert_eq!(exchange_tokens(rate - 1), (0, rate - 1));
         assert_eq!(exchange_tokens(rate), (1, 0));
         assert_eq!(exchange_tokens(rate * 3 + 42), (3, 42));
+    }
+
+    #[test]
+    fn spray_tokens_are_rarer_than_growtokens() {
+        use super::exchange_spray_tokens;
+
+        assert!(super::GEMS_PER_SPRAY_TOKEN > super::GEMS_PER_GROWTOKEN);
+
+        let credits = super::GEMS_PER_GROWTOKEN * 12;
+        let (grow, _) = exchange_tokens(credits);
+        let (spray, _) = exchange_spray_tokens(credits);
+        assert!(spray < grow);
+
+        assert_eq!(exchange_spray_tokens(super::GEMS_PER_SPRAY_TOKEN), (1, 0));
+        assert_eq!(
+            exchange_spray_tokens(super::GEMS_PER_SPRAY_TOKEN * 2 + 5),
+            (2, 5)
+        );
+    }
+
+    #[test]
+    fn ultra_world_spray_has_a_price() {
+        assert!(super::ULTRA_WORLD_SPRAY_PRICE > 0);
+        assert_ne!(super::ULTRA_WORLD_SPRAY, 0);
+        assert_ne!(super::SPRAY_TOKEN_ICON, 0);
     }
 }

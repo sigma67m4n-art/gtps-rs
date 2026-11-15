@@ -1,7 +1,11 @@
 use gtps_proto::cursor::{ProtoError, Reader, Result, Writer};
 
-use crate::tile::Tile;
-use crate::world::{GroundObject, World, FORMAT_VERSION, HEIGHT, TILE_COUNT, WIDTH};
+use crate::tile::{Tile, Tree, FLAG_HAS_EXTRA};
+
+fn now_seconds() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |time| time.as_secs())
+}
+use crate::world::{GroundObject, World, FORMAT_VERSION};
 
 pub const TILE_HEADER_PADDING: usize = 7;
 pub const OBJECT_HEADER_PADDING: usize = 12;
@@ -12,6 +16,10 @@ pub fn write_tile(writer: &mut Writer, tile: &Tile) {
     writer.u16(tile.parent);
     let [low, high] = tile.packed_flags();
     writer.u8(low).u8(high);
+    if let Some(tree) = tile.tree {
+        let age = now_seconds().saturating_sub(tree.planted_at).min(u64::from(u32::MAX)) as u32;
+        writer.u8(4).u32(age).u8(tree.fruit);
+    }
 }
 
 pub fn read_tile(reader: &mut Reader<'_>) -> Result<Tile> {
@@ -20,15 +28,25 @@ pub fn read_tile(reader: &mut Reader<'_>) -> Result<Tile> {
     let parent = reader.u16()?;
     let low = reader.u8()?;
     let high = reader.u8()?;
-    let tile = Tile {
+    let mut tile = Tile {
         foreground,
         background,
         parent,
         flags: Tile::from_packed_flags(low, high),
+        tree: None,
     };
 
     if tile.has_extra() {
-        return Err(ProtoError::new("tile extra data is not supported"));
+        if reader.u8()? != 4 {
+            return Err(ProtoError::new("unsupported tile extra type"));
+        }
+        let age = reader.u32()?;
+        tile.tree = Some(Tree {
+            planted_at: now_seconds().saturating_sub(u64::from(age)),
+            grow_seconds: None,
+            fruit: reader.u8()?,
+        });
+        tile.flags |= FLAG_HAS_EXTRA;
     }
 
     Ok(tile)
@@ -72,8 +90,8 @@ pub fn encode(world: &World) -> Vec<u8> {
     writer.u16(FORMAT_VERSION);
     writer.u32(0);
     writer.str16(&world.name);
-    writer.u32(WIDTH as u32);
-    writer.u32(HEIGHT as u32);
+    writer.u32(world.width as u32);
+    writer.u32(world.height as u32);
     writer.u16(world.tiles.len() as u16);
     writer.zeros(TILE_HEADER_PADDING);
 
@@ -109,12 +127,14 @@ pub fn decode(data: &[u8]) -> Result<World> {
     let _reserved = reader.u32()?;
     let name = reader.str16()?.to_string();
 
-    if reader.u32()? as usize != WIDTH || reader.u32()? as usize != HEIGHT {
-        return Err(ProtoError::new("unexpected world dimensions"));
+    let width = reader.u32()? as usize;
+    let height = reader.u32()? as usize;
+    if width == 0 || height == 0 {
+        return Err(ProtoError::new("invalid world dimensions"));
     }
 
     let tile_count = reader.u16()? as usize;
-    if tile_count != TILE_COUNT {
+    if width.checked_mul(height) != Some(tile_count) {
         return Err(ProtoError::new("unexpected tile count"));
     }
 
@@ -129,6 +149,10 @@ pub fn decode(data: &[u8]) -> Result<World> {
     let next_object_uid = reader.u32()?;
     let object_count = reader.u32()? as usize;
 
+    if object_count > reader.remaining().saturating_sub(16) / 16 {
+        return Err(ProtoError::new("invalid object count"));
+    }
+
     let mut objects = Vec::with_capacity(object_count);
     for _ in 0..object_count {
         objects.push(read_object(&mut reader)?);
@@ -136,6 +160,8 @@ pub fn decode(data: &[u8]) -> Result<World> {
 
     Ok(World {
         name,
+        width,
+        height,
         tiles,
         objects,
         next_object_uid,
@@ -151,6 +177,7 @@ pub fn decode(data: &[u8]) -> Result<World> {
 mod tests {
     use super::{decode, encode};
     use crate::generate::default_world;
+    use crate::{Tile, World};
 
     #[test]
     fn world_round_trips() {
@@ -162,5 +189,41 @@ mod tests {
         assert_eq!(decoded.tiles, world.tiles);
         assert_eq!(decoded.flags, world.flags);
         assert_eq!(decoded.main_lock, world.main_lock);
+    }
+
+    #[test]
+    fn sized_world_round_trips() {
+        let mut world = World::sized("BLAST1", 50, 50);
+        world.set_tile(49, 49, Tile::new(2, 0));
+
+        let decoded = decode(&encode(&world)).expect("decode");
+
+        assert_eq!((decoded.width, decoded.height), (50, 50));
+        assert_eq!(decoded.tiles.len(), 50 * 50);
+        assert_eq!(decoded.tile(49, 49).copied(), Some(Tile::new(2, 0)));
+    }
+
+    #[test]
+    fn large_world_fits_the_tile_count() {
+        let world = World::sized("BLAST2", 200, 200);
+        let decoded = decode(&encode(&world)).expect("decode");
+
+        assert_eq!((decoded.width, decoded.height), (200, 200));
+        assert_eq!(decoded.tiles.len(), 40_000);
+    }
+
+    #[test]
+    fn tree_wire_age_does_not_imply_maturity() {
+        let mut tile = Tile::new(10341, 14);
+        tile.flags |= crate::tile::FLAG_HAS_EXTRA;
+        tile.tree = Some(crate::tile::Tree {
+            planted_at: super::now_seconds().saturating_sub(10),
+            grow_seconds: Some(240),
+            fruit: 1,
+        });
+        let decoded = super::decode_tile(&super::encode_tile(&tile)).unwrap();
+        assert_eq!(decoded.foreground, tile.foreground);
+        assert_eq!(decoded.tree.unwrap().grow_seconds, None);
+        assert!(!decoded.tree.unwrap().mature(super::now_seconds()));
     }
 }

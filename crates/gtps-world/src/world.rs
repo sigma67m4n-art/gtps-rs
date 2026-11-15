@@ -21,6 +21,8 @@ pub struct GroundObject {
 #[derive(Debug, Clone)]
 pub struct World {
     pub name: String,
+    pub width: usize,
+    pub height: usize,
     pub tiles: Vec<Tile>,
     pub objects: Vec<GroundObject>,
     pub next_object_uid: u32,
@@ -34,9 +36,19 @@ pub struct World {
 impl World {
     #[must_use]
     pub fn empty(name: impl Into<String>) -> Self {
+        Self::sized(name, WIDTH, HEIGHT)
+    }
+
+    #[must_use]
+    pub fn sized(name: impl Into<String>, width: usize, height: usize) -> Self {
+        let width = width.max(1);
+        let height = height.max(1);
+
         Self {
             name: name.into(),
-            tiles: vec![Tile::default(); TILE_COUNT],
+            width,
+            height,
+            tiles: vec![Tile::default(); width * height],
             objects: Vec::new(),
             next_object_uid: 1,
             base_weather: 0,
@@ -48,18 +60,18 @@ impl World {
     }
 
     #[must_use]
-    pub fn index(x: usize, y: usize) -> Option<usize> {
-        (x < WIDTH && y < HEIGHT).then_some(y * WIDTH + x)
+    pub fn index(&self, x: usize, y: usize) -> Option<usize> {
+        (x < self.width && y < self.height).then(|| y * self.width + x)
     }
 
     #[must_use]
-    pub fn coords(index: usize) -> Option<(usize, usize)> {
-        (index < TILE_COUNT).then_some((index % WIDTH, index / WIDTH))
+    pub fn coords(&self, index: usize) -> Option<(usize, usize)> {
+        (index < self.tiles.len()).then_some((index % self.width, index / self.width))
     }
 
     #[must_use]
     pub fn tile(&self, x: usize, y: usize) -> Option<&Tile> {
-        Self::index(x, y).and_then(|index| self.tiles.get(index))
+        self.index(x, y).and_then(|index| self.tiles.get(index))
     }
 
     #[must_use]
@@ -68,11 +80,11 @@ impl World {
     }
 
     pub fn tile_mut(&mut self, x: usize, y: usize) -> Option<&mut Tile> {
-        Self::index(x, y).and_then(|index| self.tiles.get_mut(index))
+        self.index(x, y).and_then(|index| self.tiles.get_mut(index))
     }
 
     pub fn set_tile(&mut self, x: usize, y: usize, tile: Tile) {
-        if let Some(index) = Self::index(x, y) {
+        if let Some(index) = self.index(x, y) {
             self.tiles[index] = tile;
         }
     }

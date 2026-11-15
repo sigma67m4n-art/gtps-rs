@@ -1,8 +1,6 @@
-pub const TELEPHONE_ITEM: u16 = 53785;
-pub const RAYMAN_FIST: u16 = 13634;
-pub const FIST_RANGE: usize = 1;
-pub const RAYMAN_FIST_RANGE: usize = 3;
+pub const TELEPHONE_ITEM: u16 = 3898;
 pub const DIAMOND_PER_BLUE_GEM: u32 = 100;
+pub const BLUE_GEM_PER_WHITE_GEM: u32 = 100;
 
 pub const TAX_PERCENT: u64 = 5;
 
@@ -13,6 +11,7 @@ pub enum LockKind {
     BlueGem,
     Emerald,
     Royal,
+    WhiteGem,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,7 +28,7 @@ pub const LOCKS: &[LockSpec] = &[
     LockSpec {
         kind: LockKind::World,
         name: "World Lock",
-        item_id: 1796,
+        item_id: 242,
         magplant_stock: 5_000,
         gems_percent: 100,
         shop_price: 0,
@@ -37,7 +36,7 @@ pub const LOCKS: &[LockSpec] = &[
     LockSpec {
         kind: LockKind::Diamond,
         name: "Diamond Lock",
-        item_id: 7188,
+        item_id: 1796,
         magplant_stock: 15_000,
         gems_percent: 100,
         shop_price: 100_000,
@@ -45,7 +44,7 @@ pub const LOCKS: &[LockSpec] = &[
     LockSpec {
         kind: LockKind::BlueGem,
         name: "Blue Gem Lock",
-        item_id: 12886,
+        item_id: 7188,
         magplant_stock: 50_000,
         gems_percent: 100,
         shop_price: 10_000_000,
@@ -53,7 +52,7 @@ pub const LOCKS: &[LockSpec] = &[
     LockSpec {
         kind: LockKind::Emerald,
         name: "Emerald Lock",
-        item_id: 13254,
+        item_id: 2408,
         magplant_stock: 100_000,
         gems_percent: 150,
         shop_price: 0,
@@ -61,9 +60,17 @@ pub const LOCKS: &[LockSpec] = &[
     LockSpec {
         kind: LockKind::Royal,
         name: "Royal Lock",
-        item_id: 8482,
+        item_id: 4802,
         magplant_stock: 200_000,
         gems_percent: 200,
+        shop_price: 0,
+    },
+    LockSpec {
+        kind: LockKind::WhiteGem,
+        name: "White Gem Lock",
+        item_id: 13685,
+        magplant_stock: 500_000,
+        gems_percent: 225,
         shop_price: 0,
     },
 ];
@@ -144,12 +151,14 @@ mod tests {
         assert_eq!(magplant_stock(by_kind(LockKind::BlueGem).item_id), 50_000);
         assert_eq!(magplant_stock(by_kind(LockKind::Emerald).item_id), 100_000);
         assert_eq!(magplant_stock(by_kind(LockKind::Royal).item_id), 200_000);
+        assert_eq!(magplant_stock(by_kind(LockKind::WhiteGem).item_id), 500_000);
     }
 
     #[test]
     fn emerald_and_royal_boost_gems() {
         assert_eq!(multiplier_percent(by_kind(LockKind::Emerald).item_id), 150);
         assert_eq!(multiplier_percent(by_kind(LockKind::Royal).item_id), 200);
+        assert_eq!(multiplier_percent(by_kind(LockKind::WhiteGem).item_id), 225);
         assert_eq!(multiplier_percent(by_kind(LockKind::World).item_id), 100);
     }
 
@@ -180,10 +189,25 @@ mod tests {
         assert!(diamond.shop_price > 0);
         assert!(blue_gem.shop_price > 0);
         assert_eq!(
-            by_item(12886).map(|spec| spec.kind),
+            by_item(7188).map(|spec| spec.kind),
             Some(LockKind::BlueGem)
         );
         assert_eq!(by_kind(LockKind::Royal).shop_price, 0);
         assert_eq!(super::DIAMOND_PER_BLUE_GEM, 100);
+        assert_eq!(super::BLUE_GEM_PER_WHITE_GEM, 100);
+    }
+
+    #[test]
+    fn white_gem_lock_is_built_from_blue_gem_locks() {
+        let white = by_kind(LockKind::WhiteGem);
+
+        assert_eq!(white.name, "White Gem Lock");
+        assert_eq!(white.magplant_stock, 500_000);
+        assert_eq!(white.gems_percent, 225);
+        assert_eq!(white.shop_price, 0);
+        assert_eq!(
+            by_item(white.item_id).map(|spec| spec.kind),
+            Some(LockKind::WhiteGem)
+        );
     }
 }

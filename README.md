@@ -19,7 +19,7 @@ Everything is built and tested by GitHub Actions; see
 ```
 crates/gtps-enet     ENet FFI (vendor/enet is compiled by build.rs)
 crates/gtps-proto    protocol codecs
-crates/gtps-world    100x60 world model
+crates/gtps-world    world model and variable-size serialization
 crates/gtps-server   binary
 vendor/enet          patched ENet 1.3.18 (see vendor/enet/PATCHES.md)
 data/                runtime data (items.dat goes here)
@@ -53,8 +53,8 @@ less, breaking a block pays more. For high tier farmables the harvest payout is
 `65%` of the break payout; low tier farmables (Dirt, Rock, Cave Background) are
 left untouched and pay the same either way.
 
-Pot O' Gold is the best farmable: its block takes `5-6` hits (first hits are
-harvests, the last hit is the break) and its payout is perfectly stable. The
+Pot O' Gold is the best farmable: its block takes six normal hits and pays
+only on the final hit. Harvest rewards require a mature tree. Its payout is stable. The
 table lives in `crates/gtps-server/src/game/economy.rs` and is easy to edit:
 
 | farmable | block | break gems | hits | tier |
@@ -71,44 +71,111 @@ table lives in `crates/gtps-server/src/game/economy.rs` and is easy to edit:
 
 Item ids are best effort until an `items.dat` is available.
 
-## Telephone service
+## Telephone services
 
-Locks are no longer sold from the gem store. Use the telephone (item `53785`)
-and dial the service number `53785` to reach the lock service:
+Use the telephone (item `3898`) and dial a service number:
+
+| number | service |
+| --- | --- |
+| `53785` | Sales-Man (locks) |
+| `12345` | Tax service |
+| `53675` | Spray shop |
+
+### Sales-Man (`53785`)
 
 | option | cost |
 | --- | --- |
 | Diamond Lock | 100,000 gems (+ 5,000 tax) |
 | Blue Gem Lock | 10,000,000 gems (+ 500,000 tax) |
 | Convert to Blue Gem Lock | 100 Diamond Locks |
-| Convert tax to Growtokens | 100,000 tax credit per token |
+| Convert to White Gem Lock | 100 Blue Gem Locks |
 
-Tax is `5%` of the price. The tax you pay is not lost: it becomes **tax
-credit**, which can be exchanged for **Growtokens** at `100,000` credit per
-token. A Growtoken therefore costs at least `2,000,000` gems of spending, which
-keeps the Growtoken supply scarce and guards against inflation.
+### Tax service (`12345`)
 
-## Anti-dupe
+Tax is `5%` of every lock purchase and is kept as **tax credit**. Tax credit can
+be converted into two tokens:
 
-Items are removed from the inventory *before* they are placed or converted,
-purchases check gems and inventory space atomically, and a world object can only
-be collected once (`remove_object` returns `None` on the second attempt), so no
-action can mint items twice.
+| token | tax credit per token |
+| --- | --- |
+| Growtoken | 100,000 |
+| Tourney Token (vanilla item `4212`) | 1,000,000 |
+
+A Tourney Token costs ten times as much tax credit as a Growtoken. Tourney
+Tokens are held as a service balance, displayed with their vanilla icon, and
+issued only by tax exchange. Pickup and planting cannot supply them. This
+restriction does not apply to Growtokens or locks. Tournament rewards are not
+implemented on this server.
+
+### Spray shop (`53675`)
+
+| item | cost | effect |
+| --- | --- | --- |
+| Ultra World Spray | 5 Tourney Tokens | instantly grows every plant in the world |
+
+The Ultra World Spray is used from the inventory like fertilizer, but it grows
+every planted seed in the current world at once.
+
+## Blast worlds
+
+Blast items are activated from the inventory and create a new empty world:
+
+| item | world |
+| --- | --- |
+| Small Blast (`13620`) | new empty 50x50 world |
+| Large Blast (`13621`) | new empty 200x200 world |
+
+Each blast consumes one item, creates a fresh `BLAST<n>` world and moves the
+player into it.
+
+## Transactions
+
+Purchases and conversions preserve balances when inventory additions fail.
+Collection checks distance and inventory capacity before removing an object.
+Dialog transactions require the currently open dialog and a single-use nonce.
+Accounts, balances and worlds are in memory; durable authentication and
+persistence are not implemented. These checks are not a complete exploit audit.
+
+## Equipment shop
+
+Open the client's store to buy equipment with gems. Prices include no extra tax.
+Effects require owning and equipping the hand item.
+
+| item | gems | reach | hits |
+| --- | --- | --- | --- |
+| Rayman's Fist (`5480`) | 50,000 | 3 tiles | normal |
+| Death's Scythe (`4166`) | 250,000 | 1 tile | 1 |
+| Legendary Rayman Fist (`60000`) | 25,000,000 | 7 tiles | 1 |
+| Mythical Rayman Fist (`60002`) | 750,000,000 | 14 tiles | 1 |
+| MAGPLANT 5000 (`5638`) | 75,000 | — | — |
+
+These items can only be acquired through gem purchases. Their seed variants,
+ground pickup and farming rewards are blocked. Crafting, trading and event
+reward systems are not implemented. The bare fist has one-tile reach.
+
+Custom item IDs are provisional. Legendary/Mythical must use Creative PS
+assets; those assets and definitions have not been supplied. White Gem Lock
+(`13685`) requires a white recolor of the BGL (`7188`) icon. Its conversion and
+server effects exist, but its client appearance is not installed. Ultra World
+Spray and both blasts also require matching client definitions. No custom
+sprite pack or modified `items.dat` is included.
 
 ## Magplants
 
-Every lock placed in a world becomes a magplant with its own stock and gem
-multiplier:
+Placed MAGPLANT 5000 machines use the world's lock tier for stock and gem
+multiplier. The current BFG prototype supplies a finite Pot O' Gold stock when
+a new machine is placed; inventory deposits and machine configuration are not
+implemented:
 
 | lock | item | stock | gems |
 | --- | --- | --- | --- |
-| World Lock | 1796 | 5,000 | 1.0x |
-| Diamond Lock | 7188 | 15,000 | 1.0x |
-| Blue Gem Lock | 12886 | 50,000 | 1.0x |
-| Emerald Lock | 13254 | 100,000 | 1.5x |
-| Royal Lock | 8482 | 200,000 | 2.0x |
+| World Lock | 242 | 5,000 | 1.0x |
+| Diamond Lock | 1796 | 15,000 | 1.0x |
+| Blue Gem Lock | 7188 | 50,000 | 1.0x |
+| Emerald Lock | 2408 | 100,000 | 1.5x |
+| Royal Lock | 4802 | 200,000 | 2.0x |
+| White Gem Lock | 13685 | 500,000 | 2.25x |
 
-Lock ids are best effort until an `items.dat` is available.
+White Gem Lock is converted from 100 BGL at Sales-Man (`53785`).
 
 ## Cheats
 
@@ -117,14 +184,14 @@ current gem balance.
 
 | option | effect |
 | --- | --- |
-| Auto Farm | farms the best farmable block you carry |
+| Auto Farm | enables automatic farming ticks |
 | Auto Farm: BFG Mode | farms from the remote magplant nearby |
 | Auto Grab Magplant Remote | when a magplant runs dry, grab another one in range |
-| Auto Farm: Use Placed Blocks | place blocks (from your inventory) instead of a magplant |
+| Auto Farm: Use Placed Blocks | punches reachable farmable blocks and mature trees |
 
-Auto farm reach is `1` tile with the fist and `3` tiles with Rayman's Fist
-(item `13634`). Without a magplant, BFG Mode falls back to placing the blocks
-you carry.
+Auto farm uses the equipped tool's hit count and reach. BFG rewards a block
+break only after its required hits; intermediate hits do not award gems.
+Without magplant stock it falls back to reachable placed farmables.
 
 ## Login
 

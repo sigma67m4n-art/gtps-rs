@@ -8,6 +8,7 @@ use crate::game::locks::Magplant;
 pub struct WorldEntry {
     pub world: World,
     pub magplants: Vec<Magplant>,
+    pub damage: HashMap<usize, u32>,
 }
 
 #[derive(Debug, Default)]
@@ -34,6 +35,19 @@ impl WorldStore {
         &mut self.entry_mut(name).world
     }
 
+    pub fn ensure_sized(&mut self, name: &str, width: usize, height: usize) -> &mut World {
+        let entry = self
+            .worlds
+            .entry(name.to_string())
+            .or_insert_with(|| WorldEntry {
+                world: World::sized(name, width, height),
+                magplants: Vec::new(),
+                damage: HashMap::new(),
+            });
+
+        &mut entry.world
+    }
+
     #[must_use]
     pub fn is_loaded(&self, name: &str) -> bool {
         self.worlds.contains_key(name)
@@ -45,6 +59,7 @@ impl WorldStore {
             .or_insert_with(|| WorldEntry {
                 world: default_world(name),
                 magplants: Vec::new(),
+                damage: HashMap::new(),
             })
     }
 
@@ -92,7 +107,7 @@ impl WorldStore {
         });
 
         for index in candidates {
-            if !within_reach(entry.magplants[index].tile, reach) {
+            if !within_reach(&entry.world, entry.magplants[index].tile, reach) {
                 continue;
             }
 
@@ -107,12 +122,12 @@ impl WorldStore {
     }
 }
 
-fn within_reach(tile: usize, reach: Option<(usize, usize, usize)>) -> bool {
+fn within_reach(world: &World, tile: usize, reach: Option<(usize, usize, usize)>) -> bool {
     let Some((origin_x, origin_y, range)) = reach else {
         return true;
     };
 
-    let Some((x, y)) = World::coords(tile) else {
+    let Some((x, y)) = world.coords(tile) else {
         return false;
     };
 
@@ -191,5 +206,30 @@ mod tests {
         assert!(store
             .take_from_magplant("TEST", Some(7), false, 1, None)
             .is_none());
+    }
+
+    #[test]
+    fn sized_worlds_keep_their_dimensions() {
+        let mut store = WorldStore::new();
+        store.ensure_sized("BLAST1", 50, 50);
+        store.ensure_sized("BLAST2", 200, 200);
+
+        let small = store.get("BLAST1").expect("small world");
+        let large = store.get("BLAST2").expect("large world");
+
+        assert_eq!((small.width, small.height), (50, 50));
+        assert_eq!(small.tiles.len(), 2_500);
+        assert_eq!((large.width, large.height), (200, 200));
+        assert_eq!(large.tiles.len(), 40_000);
+    }
+
+    #[test]
+    fn ensuring_a_loaded_world_does_not_resize_it() {
+        let mut store = WorldStore::new();
+        store.ensure_sized("BLAST1", 50, 50);
+        store.ensure_sized("BLAST1", 200, 200);
+
+        let world = store.get("BLAST1").expect("world");
+        assert_eq!((world.width, world.height), (50, 50));
     }
 }

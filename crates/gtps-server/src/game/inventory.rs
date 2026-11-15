@@ -45,8 +45,14 @@ impl Inventory {
     }
 
     pub fn add(&mut self, id: u16, count: u8) -> bool {
+        if count == 0 || count > MAX_STACK {
+            return false;
+        }
         if let Some(item) = self.items.iter_mut().find(|item| item.id == id) {
-            item.count = item.count.saturating_add(count).min(MAX_STACK);
+            if u16::from(item.count) + u16::from(count) > u16::from(MAX_STACK) {
+                return false;
+            }
+            item.count += count;
             return true;
         }
 
@@ -90,7 +96,19 @@ impl Inventory {
 
     #[must_use]
     pub fn can_add(&self, id: u16) -> bool {
-        self.items.iter().any(|item| item.id == id) || self.items.len() < self.capacity as usize
+        match self.items.iter().find(|item| item.id == id) {
+            Some(item) => item.count < MAX_STACK,
+            None => self.items.len() < self.capacity as usize,
+        }
+    }
+
+    pub fn exchange(&mut self, source: u16, count: u8, target: u16) -> bool {
+        let mut next = self.clone();
+        if !next.remove(source, count) || !next.add(target, 1) {
+            return false;
+        }
+        *self = next;
+        true
     }
 
     #[must_use]
@@ -151,5 +169,19 @@ mod tests {
         inventory.set_capacity(inventory.items().len() as u32);
         assert!(!inventory.can_add(items::ROCK));
         assert!(inventory.can_add(items::FIST));
+    }
+
+    #[test]
+    fn exchange_preserves_inputs_when_output_stack_is_full() {
+        let mut inventory = Inventory::default();
+        inventory.add(7188, 100);
+        inventory.add(13685, 200);
+        assert!(!inventory.exchange(7188, 100, 13685));
+        assert_eq!(inventory.count_of(7188), 100);
+        inventory.remove(13685, 1);
+        assert!(inventory.exchange(7188, 100, 13685));
+        assert_eq!(inventory.count_of(7188), 0);
+        assert_eq!(inventory.count_of(13685), 200);
+        assert!(!inventory.exchange(7188, 100, 13685));
     }
 }

@@ -63,6 +63,19 @@ jobs:
       - name: check formatting
         run: cargo fmt --all -- --check
 
+      - name: export formatting patch
+        if: failure()
+        run: |
+          cargo fmt --all
+          git diff > formatting.patch
+
+      - name: upload formatting patch
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustfmt-patch
+          path: formatting.patch
+
   clippy:
     name: clippy (advisory)
     runs-on: ubuntu-latest
