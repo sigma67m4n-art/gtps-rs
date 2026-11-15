@@ -1,6 +1,6 @@
-use gtps_proto::{Variant, VariantList};
 #[cfg(test)]
 use gtps_proto::Text;
+use gtps_proto::{Variant, VariantList};
 
 #[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]

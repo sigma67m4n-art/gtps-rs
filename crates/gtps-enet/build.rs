@@ -24,6 +24,7 @@ fn main() {
     if cfg!(windows) {
         build.file(enet.join("win32.c"));
     } else {
+        build.define("HAS_SOCKLEN_T", "1");
         build.file(enet.join("unix.c"));
     }
 

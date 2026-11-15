@@ -47,6 +47,12 @@ jobs:
           path: target/debug/gtps-server
           if-no-files-found: error
 
+      - name: upload dependency lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-lock
+          path: Cargo.lock
+
   fmt:
     name: rustfmt (advisory)
     runs-on: ubuntu-latest

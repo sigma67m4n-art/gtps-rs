@@ -12,6 +12,7 @@ pub struct ItemDefinition {
     pub hits: u32,
     pub grow_seconds: u32,
     max_amount_offset: usize,
+    offset: usize,
 }
 
 fn skip_string(reader: &mut Reader<'_>) -> Result<()> {
@@ -20,6 +21,7 @@ fn skip_string(reader: &mut Reader<'_>) -> Result<()> {
 }
 
 fn definition(reader: &mut Reader<'_>, version: u16, expected: u32) -> Result<ItemDefinition> {
+    let offset = reader.position();
     if reader.u32()? != expected { return Err(ProtoError::new("unordered item ID")); }
     reader.skip(2)?;
     let kind = reader.u8()?;
@@ -56,7 +58,7 @@ fn definition(reader: &mut Reader<'_>, version: u16, expected: u32) -> Result<It
     if version >= 25 { skip_string(reader)?; reader.skip(4)?; }
     if version >= 26 { reader.skip(1)?; }
     if version >= 27 { skip_string(reader)?; }
-    Ok(ItemDefinition { kind, collision, hits, grow_seconds, max_amount_offset })
+    Ok(ItemDefinition { kind, collision, hits, grow_seconds, max_amount_offset, offset })
 }
 
 #[must_use]
@@ -116,6 +118,16 @@ impl ItemsDat {
         self.hash = hash_data(&self.raw);
     }
 
+    pub fn configure_farmable(&mut self, block: u16, hits: u8) {
+        if let Some(definition) = self.definitions.get_mut(usize::from(block)) {
+            definition.kind = 17;
+            definition.hits = u32::from(hits);
+            self.raw[definition.offset+6] = 17;
+            self.raw[definition.max_amount_offset-8] = hits.saturating_mul(6);
+        }
+        self.hash = hash_data(&self.raw);
+    }
+
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let raw = std::fs::read(path).map_err(|_| ProtoError::new("failed to read items.dat"))?;
         Self::parse(raw)
@@ -166,6 +178,20 @@ mod tests {
         }
         assert_eq!(db.get(3).unwrap().kind,19);
         assert!(super::ItemsDat::parse(raw[..raw.len()-1].to_vec()).is_err());
+    }
+
+    #[test]
+    fn served_database_preserves_layout_after_stack_and_farm_changes() {
+        let mut db = super::ItemsDat::parse(include_bytes!("../../../data/items.dat").to_vec()).unwrap();
+        let old_hash = db.hash();
+        db.set_stack_limit(250);
+        db.configure_farmable(542,6);
+        let reparsed = super::ItemsDat::parse(db.raw().to_vec()).unwrap();
+        assert_ne!(old_hash,reparsed.hash());
+        let pot = reparsed.get(542).unwrap();
+        assert_eq!((pot.kind,pot.hits),(17,6));
+        assert_eq!(reparsed.raw()[pot.max_amount_offset],250);
+        assert_eq!(reparsed.get(4).unwrap().hits,4);
     }
 
     #[test]

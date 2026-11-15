@@ -20,7 +20,8 @@ pub fn plant(seed: u16, background: u16, grow_seconds: u32, now: u64) -> Tile {
 
 pub fn can_plant(world: &World, x: usize, y: usize) -> bool {
     world.tile(x, y).is_some_and(|tile| tile.foreground == 0)
-        && y.checked_add(1).and_then(|below| world.tile(x, below))
+        && y.checked_add(1)
+            .and_then(|below| world.tile(x, below))
             .is_some_and(|tile| tile.foreground != 0 && tile.tree.is_none())
 }
 

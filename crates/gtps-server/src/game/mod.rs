@@ -61,6 +61,7 @@ fn load_items(config: &Config) -> Option<ItemsDat> {
     match ItemsDat::load(&config.items_path) {
         Ok(mut items) => {
             items.set_stack_limit(inventory::MAX_STACK);
+            items.configure_farmable(economy::highest().block_id, economy::highest().hits as u8);
             logging::info(format!(
                 "loaded items.dat v{} with {} items ({} bytes)",
                 items.version(),
@@ -1081,7 +1082,8 @@ impl Game {
             }
             let definition = self.items.as_ref().and_then(|db| db.get(item));
             let is_seed = definition.is_some_and(|item| item.kind == 19);
-            if is_seed && (!farming::can_plant(world, x, y) || world.tile(x,y+1).and_then(|tile| self.items.as_ref()?.get(tile.foreground)).is_none_or(|item| !matches!(item.collision,1 | 2))) {
+            if definition.is_some_and(|definition| definition.kind == 20) || (is_seed && item != economy::highest().seed_id) { return; }
+            if is_seed && (!farming::can_plant(world, x, y) || !world.tile(x,y+1).and_then(|tile| self.items.as_ref()?.get(tile.foreground)).is_some_and(|item| matches!(item.collision,1 | 2))) {
                 self.console(peer, "Seeds need a block directly beneath them.");
                 return;
             }
