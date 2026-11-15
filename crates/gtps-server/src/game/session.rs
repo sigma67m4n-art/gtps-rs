@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use crate::game::cheats::CheatState;
 use crate::game::inventory::Inventory;
+use super::admin::Role;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
@@ -31,9 +32,16 @@ pub struct Session {
     pub growtokens: u32,
     pub spray_tokens: u32,
     pub equipped_hand: u16,
+    pub equipped_back: u16,
     pub last_punch: Option<Instant>,
     pub dialog: Option<(String, u64)>,
     pub dialog_sequence: u64,
+    pub role: Role,
+    pub auth_attempt: Option<Instant>,
+    pub muted: bool,
+    pub frozen: bool,
+    pub magplant_dialog: Option<(String, usize)>,
+    pub collected_gems: u32,
 }
 
 impl Session {
@@ -57,10 +65,17 @@ impl Session {
             tax_credits: 0,
             growtokens: 0,
             spray_tokens: 0,
-            equipped_hand: 0,
+            equipped_hand: gtps_world::items::FIST,
+            equipped_back: 0,
             last_punch: None,
             dialog: None,
             dialog_sequence: 0,
+            role: Role::Player,
+            auth_attempt: None,
+            muted: false,
+            frozen: false,
+            magplant_dialog: None,
+            collected_gems: 0,
         }
     }
 

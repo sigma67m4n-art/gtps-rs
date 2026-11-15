@@ -4,14 +4,14 @@ use gtps_world::{default_world, World};
 
 use crate::game::locks::Magplant;
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct WorldEntry {
     pub world: World,
     pub magplants: Vec<Magplant>,
     pub damage: HashMap<usize, u32>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct WorldStore {
     worlds: HashMap<String, WorldEntry>,
 }

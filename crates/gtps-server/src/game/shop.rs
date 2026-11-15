@@ -2,8 +2,8 @@ use gtps_proto::{Text, Variant, VariantList};
 
 use crate::game::cheats::CheatState;
 use crate::game::economy;
-use crate::game::tools;
 use crate::game::locks::{self, LockKind, LockSpec, TELEPHONE_ITEM};
+use crate::game::tools;
 
 pub const DIALOG_TELEPHONE_DIAL: &str = "telephone_dial";
 pub const DIALOG_TELEPHONE: &str = "telephone";
@@ -160,7 +160,9 @@ pub fn spray_dialog(spray_tokens: u32) -> VariantList {
     body.push_str(&format!(
         "add_textbox|`wTourney Tokens: `9{spray_tokens}``|left|\n"
     ));
-    body.push_str("add_textbox|`wUltra World Spray instantly grows every plant in the world.``|left|\n");
+    body.push_str(
+        "add_textbox|`wUltra World Spray instantly grows every plant in the world.``|left|\n",
+    );
     body.push_str("add_spacer|small|\n");
     body.push_str(&format!(
         "add_button|{BUY_SPRAY}|`wUltra World Spray ``(`9{} Tourney Tokens``)``|\n",
@@ -174,9 +176,17 @@ pub fn spray_dialog(spray_tokens: u32) -> VariantList {
 }
 
 pub fn equipment_dialog(gems: u32) -> VariantList {
-    let mut body = format!("add_label_with_icon|big|`wEquipment Shop``|left|{}|\nadd_textbox|Gems: {gems}|left|\n", tools::DEATH_SCYTHE);
+    let mut body = format!(
+        "add_label_with_icon|big|`wEquipment Shop``|left|{}|\nadd_textbox|Gems: {gems}|left|\n",
+        tools::DEATH_SCYTHE
+    );
     for tool in tools::CATALOG {
-        body.push_str(&format!("add_button|buy_tool_{}|{} - {} Gems|\n", tool.item, tool.name, with_commas(u64::from(tool.price))));
+        body.push_str(&format!(
+            "add_button|buy_tool_{}|{} - {} Gems|\n",
+            tool.item,
+            tool.name,
+            with_commas(u64::from(tool.price))
+        ));
     }
     body.push_str(&format!("end_dialog|{}|Close||\n", tools::DIALOG));
     VariantList::new("OnDialogRequest").arg(Variant::String(body))
@@ -277,8 +287,8 @@ mod tests {
         cheat_button, cheats_dialog, lock_button, open_button, salesman_dialog, service_for,
         spray_dialog, tax_dialog, wants_buy_spray, wants_conversion, wants_exchange,
         wants_spray_exchange, wants_white_conversion, with_commas, Service, BUY_BLUE_GEM,
-        BUY_SPRAY, CONVERT_BLUE_GEM, CONVERT_WHITE_GEM, EXCHANGE_SPRAY, EXCHANGE_TOKENS,
-        OPEN_TAX, SALESMAN_NUMBER, SPRAY_NUMBER, TAX_NUMBER,
+        BUY_SPRAY, CONVERT_BLUE_GEM, CONVERT_WHITE_GEM, EXCHANGE_SPRAY, EXCHANGE_TOKENS, OPEN_TAX,
+        SALESMAN_NUMBER, SPRAY_NUMBER, TAX_NUMBER,
     };
     use crate::game::cheats::CheatState;
     use crate::game::locks::LockKind;
@@ -386,6 +396,9 @@ mod tests {
         assert!(lock_button(&close).is_none());
         assert!(!wants_white_conversion(&close));
         let buy = Text::parse_str("buttonClicked|buy_bluegem\n");
-        assert_eq!(lock_button(&buy).map(|spec| spec.kind), Some(LockKind::BlueGem));
+        assert_eq!(
+            lock_button(&buy).map(|spec| spec.kind),
+            Some(LockKind::BlueGem)
+        );
     }
 }

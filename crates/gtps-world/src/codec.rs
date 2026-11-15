@@ -3,7 +3,9 @@ use gtps_proto::cursor::{ProtoError, Reader, Result, Writer};
 use crate::tile::{Tile, Tree, FLAG_HAS_EXTRA};
 
 fn now_seconds() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |time| time.as_secs())
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |time| time.as_secs())
 }
 use crate::world::{GroundObject, World, FORMAT_VERSION};
 
@@ -17,7 +19,9 @@ pub fn write_tile(writer: &mut Writer, tile: &Tile) {
     let [low, high] = tile.packed_flags();
     writer.u8(low).u8(high);
     if let Some(tree) = tile.tree {
-        let age = now_seconds().saturating_sub(tree.planted_at).min(u64::from(u32::MAX)) as u32;
+        let age = now_seconds()
+            .saturating_sub(tree.planted_at)
+            .min(u64::from(u32::MAX)) as u32;
         writer.u8(4).u32(age).u8(tree.fruit);
     }
 }

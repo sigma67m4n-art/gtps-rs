@@ -9,6 +9,12 @@ use std::process::ExitCode;
 fn main() -> ExitCode {
     let config = config::Config::from_env();
     logging::init(config.log_level);
+    if let Some(parent) = std::path::Path::new(&config.auth_path).parent() {
+        if !parent.as_os_str().is_empty() && std::fs::create_dir_all(parent).is_err() {
+            logging::error("failed to create account data directory");
+            return ExitCode::FAILURE;
+        }
+    }
 
     logging::info(format!(
         "gtps-rs starting: game {} http {}",

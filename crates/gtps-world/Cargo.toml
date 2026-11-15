@@ -7,4 +7,5 @@ license.workspace = true
 description = "Growtopia world model, generation and binary serialization"
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 gtps-proto.workspace = true

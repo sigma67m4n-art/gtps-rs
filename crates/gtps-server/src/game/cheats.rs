@@ -1,8 +1,12 @@
-pub const OPTIONS: [(&str, &str); 4] = [
+pub const OPTIONS: [(&str, &str); 8] = [
     ("auto_farm", "Auto Farm"),
     ("bfg_mode", "Auto Farm: BFG Mode"),
     ("auto_grab_remote", "Auto Grab Magplant Remote"),
     ("use_blocks", "Auto Farm: Use Placed Blocks"),
+    ("super_speed", "Super Speed"),
+    ("high_jump", "High Jump"),
+    ("modfly", "Modfly"),
+    ("auto_collect_gems", "Auto Collect Gems"),
 ];
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -11,13 +15,17 @@ pub struct CheatState {
     pub bfg_mode: bool,
     pub auto_grab_remote: bool,
     pub use_blocks: bool,
+    pub super_speed: bool,
+    pub high_jump: bool,
+    pub modfly: bool,
+    pub auto_collect_gems: bool,
 }
 
 impl CheatState {
     pub const BUTTON_PREFIX: &'static str = "cheat_";
 
     #[must_use]
-    pub fn entries(&self) -> [(&'static str, &'static str, bool); 4] {
+    pub fn entries(&self) -> [(&'static str, &'static str, bool); 8] {
         OPTIONS.map(|(name, label)| (name, label, self.is_enabled(name)))
     }
 
@@ -28,6 +36,10 @@ impl CheatState {
             "bfg_mode" => self.bfg_mode,
             "auto_grab_remote" => self.auto_grab_remote,
             "use_blocks" => self.use_blocks,
+            "super_speed" => self.super_speed,
+            "high_jump" => self.high_jump,
+            "modfly" => self.modfly,
+            "auto_collect_gems" => self.auto_collect_gems,
             _ => false,
         }
     }
@@ -38,6 +50,10 @@ impl CheatState {
             "bfg_mode" => self.bfg_mode = !self.bfg_mode,
             "auto_grab_remote" => self.auto_grab_remote = !self.auto_grab_remote,
             "use_blocks" => self.use_blocks = !self.use_blocks,
+            "super_speed" => self.super_speed = !self.super_speed,
+            "high_jump" => self.high_jump = !self.high_jump,
+            "modfly" => self.modfly = !self.modfly,
+            "auto_collect_gems" => self.auto_collect_gems = !self.auto_collect_gems,
             _ => return false,
         }
 

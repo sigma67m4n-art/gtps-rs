@@ -9,7 +9,7 @@ pub const PIXEL_WIDTH: f32 = WIDTH as f32 * TILE_SIZE_PIXELS;
 pub const PIXEL_HEIGHT: f32 = HEIGHT as f32 * TILE_SIZE_PIXELS;
 pub const DOOR_ROW: usize = 24;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct GroundObject {
     pub item_id: u16,
     pub pos_x: f32,
@@ -18,7 +18,7 @@ pub struct GroundObject {
     pub uid: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct World {
     pub name: String,
     pub width: usize,

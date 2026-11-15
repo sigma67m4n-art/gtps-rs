@@ -1,9 +1,9 @@
-pub const FIST: u16 = 0;
-pub const WRENCH: u16 = 1;
+pub const FIST: u16 = 18;
+pub const WRENCH: u16 = 32;
 pub const DIRT: u16 = 2;
 pub const DIRT_SEED: u16 = 3;
-pub const ROCK: u16 = 4;
-pub const ROCK_SEED: u16 = 5;
-pub const BEDROCK: u16 = 6;
-pub const MAIN_DOOR: u16 = 8;
+pub const ROCK: u16 = 10;
+pub const ROCK_SEED: u16 = 11;
+pub const BEDROCK: u16 = 8;
+pub const MAIN_DOOR: u16 = 6;
 pub const CAVE_BACKGROUND: u16 = 14;

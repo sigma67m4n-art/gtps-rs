@@ -1,5 +1,5 @@
-pub const SMALL_BLAST: u16 = 13620;
-pub const LARGE_BLAST: u16 = 13621;
+pub const SMALL_BLAST: u16 = 60008;
+pub const LARGE_BLAST: u16 = 60010;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Blast {

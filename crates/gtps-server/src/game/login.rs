@@ -1,5 +1,8 @@
-use gtps_proto::{Text, Variant, VariantList};
+use gtps_proto::{Variant, VariantList};
+#[cfg(test)]
+use gtps_proto::Text;
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoginRequest {
     pub grow_id: Option<String>,
@@ -11,6 +14,7 @@ pub struct LoginRequest {
     pub login_mode: u32,
 }
 
+#[cfg(test)]
 impl LoginRequest {
     #[must_use]
     pub fn parse(text: &Text) -> Option<Self> {

@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 
 use crate::logging::Level;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Config {
     pub game_bind: SocketAddr,
     pub http_bind: SocketAddr,
@@ -16,6 +16,10 @@ pub struct Config {
     pub log_level: Level,
     pub starting_gems: u32,
     pub inventory_capacity: u32,
+    pub owner_key: String,
+    pub auth_path: String,
+    pub public_host: String,
+    pub login_url: String,
 }
 
 fn env_string(key: &str, default: &str) -> String {
@@ -43,6 +47,10 @@ impl Default for Config {
             log_level: Level::Info,
             starting_gems: 100,
             inventory_capacity: 596,
+            owner_key: String::new(),
+            auth_path: "data/accounts.sqlite".into(),
+            public_host: "127.0.0.1".into(),
+            login_url: "http://127.0.0.1:8080".into(),
         }
     }
 }
@@ -64,6 +72,10 @@ impl Config {
             log_level: Level::from_name(&env_string("GTPS_LOG_LEVEL", "info")),
             starting_gems: env_parsed("GTPS_STARTING_GEMS", default.starting_gems),
             inventory_capacity: env_parsed("GTPS_INVENTORY_CAPACITY", default.inventory_capacity),
+            owner_key: env_string("GTPS_OWNER_KEY", ""),
+            auth_path: env_string("GTPS_AUTH_PATH", &default.auth_path),
+            public_host: env_string("GTPS_PUBLIC_HOST", &default.public_host),
+            login_url: env_string("GTPS_LOGIN_URL", &default.login_url),
         }
     }
 }

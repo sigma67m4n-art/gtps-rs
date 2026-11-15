@@ -68,7 +68,7 @@ pub const LOCKS: &[LockSpec] = &[
     LockSpec {
         kind: LockKind::WhiteGem,
         name: "White Gem Lock",
-        item_id: 13685,
+        item_id: 60004,
         magplant_stock: 500_000,
         gems_percent: 225,
         shop_price: 0,
@@ -108,7 +108,7 @@ pub fn total_with_tax(price: u64) -> u64 {
     price + tax(price)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Magplant {
     pub tile: usize,
     pub lock_item: u16,
@@ -188,10 +188,7 @@ mod tests {
 
         assert!(diamond.shop_price > 0);
         assert!(blue_gem.shop_price > 0);
-        assert_eq!(
-            by_item(7188).map(|spec| spec.kind),
-            Some(LockKind::BlueGem)
-        );
+        assert_eq!(by_item(7188).map(|spec| spec.kind), Some(LockKind::BlueGem));
         assert_eq!(by_kind(LockKind::Royal).shop_price, 0);
         assert_eq!(super::DIAMOND_PER_BLUE_GEM, 100);
         assert_eq!(super::BLUE_GEM_PER_WHITE_GEM, 100);

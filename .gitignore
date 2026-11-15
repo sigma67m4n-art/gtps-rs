@@ -3,4 +3,6 @@
 /data/*
 !/data/.gitkeep
 *.dat
+!/data/items.dat
+!/data/ITEMS.md
 .DS_Store

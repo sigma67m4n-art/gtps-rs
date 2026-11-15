@@ -94,3 +94,22 @@ jobs:
 
       - name: lint
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+  arm64:
+    name: ARM64 static server
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-musl
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: build static server
+        env:
+          CC_aarch64_unknown_linux_musl: musl-gcc
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+        run: cargo build --release --target aarch64-unknown-linux-musl -p gtps-server
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gtps-server-linux-aarch64
+          path: target/aarch64-unknown-linux-musl/release/gtps-server

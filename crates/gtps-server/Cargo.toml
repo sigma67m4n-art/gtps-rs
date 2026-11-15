@@ -11,6 +11,11 @@ name = "gtps-server"
 path = "src/main.rs"
 
 [dependencies]
+gtps-auth.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_urlencoded = "0.7"
+tiny_http = "0.12"
 gtps-enet.workspace = true
 gtps-proto.workspace = true
 gtps-world.workspace = true

@@ -1,17 +1,17 @@
 use gtps_proto::cursor::{Reader, Result, Writer};
 use gtps_world::items;
 
-pub const MAX_STACK: u8 = 200;
+pub const MAX_STACK: u8 = 250;
 pub const DEFAULT_CAPACITY: u32 = 596;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Item {
     pub id: u16,
     pub count: u8,
     pub flags: u8,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Inventory {
     capacity: u32,
     items: Vec<Item>,
@@ -30,6 +30,13 @@ impl Default for Inventory {
 }
 
 impl Inventory {
+    pub fn starter() -> Self {
+        let mut inventory = Self::default();
+        inventory.add(super::economy::highest().block_id, MAX_STACK);
+        inventory.add(super::tools::RIPPER_WINGS, 1);
+        inventory.add(super::tools::PICKAXE, 1);
+        inventory
+    }
     #[must_use]
     pub fn capacity(&self) -> u32 {
         self.capacity
@@ -147,7 +154,17 @@ impl Inventory {
 
 #[cfg(test)]
 mod tests {
-    use super::Inventory;
+    use super::{Inventory,MAX_STACK};
+
+    #[test]
+    fn starter_and_stack_limit_round_trip() {
+        let mut inventory = Inventory::starter();
+        assert_eq!(inventory.count_of(542),250);
+        assert_eq!(inventory.count_of(98),1);
+        assert_eq!(inventory.count_of(818),1);
+        assert!(!inventory.add(542,1));
+        assert_eq!(Inventory::decode(&inventory.encode()).unwrap().count_of(542),250);
+    }
     use gtps_world::items;
 
     #[test]
@@ -175,13 +192,13 @@ mod tests {
     fn exchange_preserves_inputs_when_output_stack_is_full() {
         let mut inventory = Inventory::default();
         inventory.add(7188, 100);
-        inventory.add(13685, 200);
-        assert!(!inventory.exchange(7188, 100, 13685));
+        inventory.add(60004, MAX_STACK);
+        assert!(!inventory.exchange(7188, 100, 60004));
         assert_eq!(inventory.count_of(7188), 100);
-        inventory.remove(13685, 1);
-        assert!(inventory.exchange(7188, 100, 13685));
+        inventory.remove(60004, 1);
+        assert!(inventory.exchange(7188, 100, 60004));
         assert_eq!(inventory.count_of(7188), 0);
-        assert_eq!(inventory.count_of(13685), 200);
-        assert!(!inventory.exchange(7188, 100, 13685));
+        assert_eq!(inventory.count_of(60004), 250);
+        assert!(!inventory.exchange(7188, 100, 60004));
     }
 }
