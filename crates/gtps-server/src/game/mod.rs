@@ -1,15 +1,21 @@
+pub mod cheats;
+pub mod economy;
 pub mod inventory;
+pub mod locks;
 pub mod login;
 pub mod session;
+pub mod shop;
 pub mod world;
 
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use gtps_enet::{Event, Host, Packet, PeerId};
 use gtps_proto::tank::{
-    TYPE_ITEM_ACTIVATE_OBJECT_REQUEST, TYPE_ITEM_CHANGE_OBJECT, TYPE_MODIFY_ITEM_INVENTORY,
-    TYPE_PING_REPLY, TYPE_SEND_INVENTORY_STATE, TYPE_SEND_ITEM_DATABASE_DATA, TYPE_SEND_MAP_DATA,
-    TYPE_SEND_TILE_UPDATE_DATA, TYPE_STATE, TYPE_TILE_CHANGE_REQUEST,
+    TYPE_ITEM_ACTIVATE_OBJECT_REQUEST, TYPE_ITEM_ACTIVATE_REQUEST, TYPE_ITEM_CHANGE_OBJECT,
+    TYPE_MODIFY_ITEM_INVENTORY, TYPE_PING_REPLY, TYPE_SEND_INVENTORY_STATE,
+    TYPE_SEND_ITEM_DATABASE_DATA, TYPE_SEND_MAP_DATA, TYPE_SEND_TILE_UPDATE_DATA, TYPE_STATE,
+    TYPE_TILE_CHANGE_REQUEST,
 };
 use gtps_proto::{framing, ItemsDat, Message, TankPacket, Text, Variant, VariantList};
 
@@ -17,9 +23,12 @@ use crate::config::Config;
 use crate::logging;
 use crate::store::WorldStore;
 
+use self::cheats::CheatState;
 use session::{Session, Stage};
 
 const SERVICE_TIMEOUT_MS: u32 = 10;
+const CHEAT_TICK_MS: u64 = 500;
+const CHEAT_ACTIONS_PER_TICK: u32 = 20;
 
 pub struct Game {
     host: Host,
@@ -29,6 +38,7 @@ pub struct Game {
     items: Option<ItemsDat>,
     next_user_id: u32,
     next_net_id: u32,
+    rng: u32,
 }
 
 fn allocate(counter: &mut u32) -> u32 {
@@ -76,15 +86,32 @@ impl Game {
             items,
             next_user_id: 1,
             next_net_id: 1,
+            rng: 0x1234_5678,
         })
     }
 
     pub fn run(&mut self) -> Result<(), gtps_enet::Error> {
+        let mut last_tick = Instant::now();
+
         loop {
             if let Some(event) = self.host.service(SERVICE_TIMEOUT_MS)? {
                 self.handle_event(event);
             }
+
+            if last_tick.elapsed() >= Duration::from_millis(CHEAT_TICK_MS) {
+                last_tick = Instant::now();
+                self.tick_cheats();
+            }
         }
+    }
+
+    fn next_rand(&mut self) -> u32 {
+        let mut state = self.rng;
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        self.rng = state;
+        state
     }
 
     fn handle_event(&mut self, event: Event) {
@@ -170,6 +197,8 @@ impl Game {
 
         let motd = login::console_message(&self.config.motd);
         self.send_variant(peer, &motd, framing::NET_ID_BROADCAST, 0);
+
+        self.send_gems(peer);
     }
 
     fn on_action(&mut self, peer: PeerId, action: &str, text: &Text) {
@@ -181,9 +210,98 @@ impl Game {
                 }
             }
             "refresh_item_data" => self.on_refresh_item_data(peer),
+            "say" => self.on_say(peer, text),
+            "dialog_return" => self.on_dialog_return(peer, text),
+            "wrench" => self.open_cheats(peer),
             "quit" | "quit_to_exit" | "leave_world" => self.leave_current_world(peer),
             other => logging::debug(format!("peer {} sent action {other}", peer.index())),
         }
+    }
+
+    fn on_say(&mut self, peer: PeerId, text: &Text) {
+        let Some(message) = text.get("message") else {
+            return;
+        };
+
+        match message.trim().to_lowercase().as_str() {
+            "/cheats" => self.open_cheats(peer),
+            "/shop" => self.open_telephone(peer),
+            "/gems" => {
+                let gems = self.sessions.get(&peer).map_or(0, |session| session.gems);
+                self.console(peer, &format!("You have {gems} gems."));
+            }
+            _ => {}
+        }
+    }
+
+    fn on_dialog_return(&mut self, peer: PeerId, text: &Text) {
+        match text.get("dialog_name") {
+            Some(shop::DIALOG_TELEPHONE) => self.on_telephone_return(peer, text),
+            Some(shop::DIALOG_CHEATS) => self.on_cheats_return(peer, text),
+            _ => {}
+        }
+    }
+
+    fn on_telephone_return(&mut self, peer: PeerId, text: &Text) {
+        let Some(spec) = shop::lock_button(text) else {
+            self.open_telephone(peer);
+            return;
+        };
+
+        let price = u32::try_from(locks::total_with_tax(spec.shop_price)).unwrap_or(u32::MAX);
+        let affordable = self.sessions.get(&peer).is_some_and(|s| s.gems >= price);
+
+        if !affordable {
+            self.console(peer, "You do not have enough gems for that lock.");
+            return;
+        }
+
+        if let Some(session) = self.sessions.get_mut(&peer) {
+            session.gems -= price;
+            session.inventory.add(spec.item_id, 1);
+        }
+
+        self.send_gems(peer);
+        self.console(peer, &format!("Bought {} for {price} gems.", spec.name));
+    }
+
+    fn on_cheats_return(&mut self, peer: PeerId, text: &Text) {
+        if let Some(name) = shop::cheat_button(text) {
+            if let Some(session) = self.sessions.get_mut(&peer) {
+                session.cheats.toggle(name);
+            }
+        }
+
+        self.open_cheats(peer);
+    }
+
+    fn open_telephone(&mut self, peer: PeerId) {
+        let gems = self.sessions.get(&peer).map_or(0, |session| session.gems);
+        let dialog = shop::telephone_dialog(gems);
+        self.send_variant(peer, &dialog, framing::NET_ID_BROADCAST, 0);
+    }
+
+    fn open_cheats(&mut self, peer: PeerId) {
+        let cheats = self
+            .sessions
+            .get(&peer)
+            .map_or_else(CheatState::default, |session| session.cheats);
+        let dialog = shop::cheats_dialog(&cheats);
+        self.send_variant(peer, &dialog, framing::NET_ID_BROADCAST, 0);
+    }
+
+    fn send_gems(&mut self, peer: PeerId) {
+        let Some(gems) = self.sessions.get(&peer).map(|session| session.gems) else {
+            return;
+        };
+
+        let list = VariantList::new("OnSetBux").arg(Variant::Int(gems as i32));
+        self.send_variant(peer, &list, framing::NET_ID_BROADCAST, 0);
+    }
+
+    fn console(&mut self, peer: PeerId, message: &str) {
+        let list = login::console_message(message);
+        self.send_variant(peer, &list, framing::NET_ID_BROADCAST, 0);
     }
 
     fn on_enter_game(&mut self, peer: PeerId) {
@@ -296,9 +414,18 @@ impl Game {
         match tank.kind {
             TYPE_STATE => self.broadcast_state(peer, tank),
             TYPE_TILE_CHANGE_REQUEST => self.on_tile_change(peer, tank),
+            TYPE_ITEM_ACTIVATE_REQUEST => self.on_item_activate(peer, tank),
             TYPE_ITEM_ACTIVATE_OBJECT_REQUEST => self.on_collect(peer, tank),
             TYPE_PING_REPLY => logging::debug(format!("peer {} replied to a ping", peer.index())),
             other => logging::debug(format!("peer {} sent tank type {other}", peer.index())),
+        }
+    }
+
+    fn on_item_activate(&mut self, peer: PeerId, tank: &TankPacket) {
+        let item = u16::try_from(tank.int_data).unwrap_or(0);
+
+        if item == locks::TELEPHONE_ITEM {
+            self.open_telephone(peer);
         }
     }
 
@@ -377,6 +504,16 @@ impl Game {
         };
 
         let payload = gtps_world::codec::encode_tile(&updated);
+
+        if let Some(index) = gtps_world::World::index(x, y) {
+            match locks::by_item(item) {
+                Some(spec) => {
+                    self.worlds.ensure_magplant(&world_name, index, spec.item_id);
+                }
+                None => self.worlds.remove_magplant(&world_name, index),
+            }
+        }
+
         let mut update = TankPacket::new(TYPE_SEND_TILE_UPDATE_DATA);
         update.net_id = session.net_id;
         update.tile_x = tank.tile_x;
@@ -421,6 +558,97 @@ impl Game {
         }
     }
 
+    fn tick_cheats(&mut self) {
+        let peers: Vec<PeerId> = self
+            .sessions
+            .values()
+            .filter(|session| session.cheats.auto_farm && session.world.is_some())
+            .map(|session| session.peer)
+            .collect();
+
+        for peer in peers {
+            self.run_auto_farm(peer);
+        }
+    }
+
+    fn run_auto_farm(&mut self, peer: PeerId) {
+        let Some(session) = self.sessions.get(&peer).cloned() else {
+            return;
+        };
+        let Some(world_name) = session.world.clone() else {
+            return;
+        };
+
+        let roll = self.next_rand();
+        let mut reward = None;
+
+        if session.cheats.bfg_mode {
+            let reach = self.farm_reach(&session);
+            let taken = self.worlds.take_from_magplant(
+                &world_name,
+                session.active_magplant,
+                session.cheats.auto_grab_remote,
+                CHEAT_ACTIONS_PER_TICK,
+                reach,
+            );
+
+            if let Some((tile, lock_item, count)) = taken {
+                let multiplier = locks::multiplier_percent(lock_item);
+                let per_cycle = economy::cycle_gems(economy::highest(), multiplier, roll);
+
+                if let Some(stored) = self.sessions.get_mut(&peer) {
+                    stored.active_magplant = Some(tile);
+                }
+
+                reward = Some(per_cycle * count);
+            }
+        }
+
+        if reward.is_none() && (session.cheats.use_blocks || session.cheats.bfg_mode) {
+            reward = self.consume_block(peer, roll);
+        }
+
+        if let Some(gems) = reward.filter(|gems| *gems > 0) {
+            if let Some(stored) = self.sessions.get_mut(&peer) {
+                stored.gems = stored.gems.saturating_add(gems);
+            }
+
+            self.send_gems(peer);
+        }
+    }
+
+    fn consume_block(&mut self, peer: PeerId, roll: u32) -> Option<u32> {
+        let session = self.sessions.get(&peer)?;
+        let farmable = economy::table()
+            .iter()
+            .filter(|farmable| session.inventory.count_of(farmable.block_id) > 0)
+            .max_by_key(|farmable| farmable.break_gems)?;
+        let block_id = farmable.block_id;
+        let gems = economy::cycle_gems(farmable, economy::GEMS_MULTIPLIER_BASE, roll);
+
+        let stored = self.sessions.get_mut(&peer)?;
+        stored.inventory.remove(block_id, 1);
+
+        Some(gems)
+    }
+
+    fn farm_reach(&self, session: &Session) -> Option<(usize, usize, usize)> {
+        if session.world.is_none() {
+            return None;
+        }
+
+        let range = if session.inventory.count_of(locks::RAYMAN_FIST) > 0 {
+            locks::RAYMAN_FIST_RANGE
+        } else {
+            locks::FIST_RANGE
+        };
+
+        let x = TankPacket::pixel_to_tile(session.pos_x).max(0) as usize;
+        let y = TankPacket::pixel_to_tile(session.pos_y).max(0) as usize;
+
+        Some((x, y, range))
+    }
+
     fn leave_current_world(&mut self, peer: PeerId) {
         let Some(session) = self.sessions.get(&peer).cloned() else {
             return;
@@ -434,6 +662,7 @@ impl Game {
 
         if let Some(stored) = self.sessions.get_mut(&peer) {
             stored.world = None;
+            stored.active_magplant = None;
         }
     }
 

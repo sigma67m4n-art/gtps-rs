@@ -7,5 +7,3 @@ pub const ROCK_SEED: u16 = 5;
 pub const BEDROCK: u16 = 6;
 pub const MAIN_DOOR: u16 = 8;
 pub const CAVE_BACKGROUND: u16 = 14;
-pub const MUD: u16 = 1892;
-pub const DOOR: u16 = 1888;

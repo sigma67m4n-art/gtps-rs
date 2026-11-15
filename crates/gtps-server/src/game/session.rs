@@ -1,5 +1,6 @@
 use gtps_enet::PeerId;
 
+use crate::game::cheats::CheatState;
 use crate::game::inventory::Inventory;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +23,8 @@ pub struct Session {
     pub pos_x: f32,
     pub pos_y: f32,
     pub inventory: Inventory,
+    pub cheats: CheatState,
+    pub active_magplant: Option<usize>,
 }
 
 impl Session {
@@ -39,6 +42,8 @@ impl Session {
             pos_x: 0.0,
             pos_y: 0.0,
             inventory: Inventory::default(),
+            cheats: CheatState::default(),
+            active_magplant: None,
         }
     }
 

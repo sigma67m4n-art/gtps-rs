@@ -46,6 +46,74 @@ The server is configured through environment variables:
 `items.dat` is not shipped. Drop a copy at `data/items.dat`. When it is missing
 the server still runs and simply ignores `refresh_item_data` requests.
 
+## Farming
+
+Farming has two actions: **harvest** and **break**. Harvesting pays a little
+less, breaking a block pays more. For high tier farmables the harvest payout is
+`65%` of the break payout; low tier farmables (Dirt, Rock, Cave Background) are
+left untouched and pay the same either way.
+
+Pot O' Gold is the best farmable: its block takes `5-6` hits (first hits are
+harvests, the last hit is the break) and its payout is perfectly stable. The
+table lives in `crates/gtps-server/src/game/economy.rs` and is easy to edit:
+
+| farmable | block | break gems | hits | tier |
+| --- | --- | --- | --- | --- |
+| Pot O' Gold | 10340 | 240 | 6 | high |
+| Lava | 10 | 160 | 1 | high |
+| Sand | 20 | 125 | 1 | high |
+| Wood Block | 22 | 95 | 1 | high |
+| Brick | 26 | 70 | 1 | high |
+| Glass Block | 24 | 50 | 1 | high |
+| Dirt | 2 | 15 | 1 | low |
+| Rock | 4 | 12 | 1 | low |
+| Cave Background | 14 | 5 | 1 | low |
+
+Item ids are best effort until an `items.dat` is available.
+
+## Telephone shop
+
+Locks are no longer sold from the gem store. Use the telephone (item `53785`),
+or type `/shop`, to open the lock shop:
+
+| lock | price | tax | total |
+| --- | --- | --- | --- |
+| Diamond Lock | 100,000 gems | 0 | 100,000 gems |
+| Blue Gem Lock | 10,000,000 gems | 500,000 | 10,500,000 gems |
+
+Tax is `5%` of every full `1,000,000` gems (`50,000` per million).
+
+## Magplants
+
+Every lock placed in a world becomes a magplant with its own stock and gem
+multiplier:
+
+| lock | item | stock | gems |
+| --- | --- | --- | --- |
+| World Lock | 1796 | 5,000 | 1.0x |
+| Diamond Lock | 7188 | 15,000 | 1.0x |
+| Blue Gem Lock | 12886 | 50,000 | 1.0x |
+| Emerald Lock | 13254 | 100,000 | 1.5x |
+| Royal Lock | 8482 | 200,000 | 2.0x |
+
+Lock ids are best effort until an `items.dat` is available.
+
+## Cheats
+
+Type `/cheats` or use the wrench to open the cheats menu. `/gems` prints the
+current gem balance.
+
+| option | effect |
+| --- | --- |
+| Auto Farm | farms the best farmable block you carry |
+| Auto Farm: BFG Mode | farms from the remote magplant nearby |
+| Auto Grab Magplant Remote | when a magplant runs dry, grab another one in range |
+| Auto Farm: Use Placed Blocks | place blocks (from your inventory) instead of a magplant |
+
+Auto farm reach is `1` tile with the fist and `3` tiles with Rayman's Fist
+(item `13634`). Without a magplant, BFG Mode falls back to placing the blocks
+you carry.
+
 ## Login
 
 The client posts to `/growtopia/server_data.php`; any path is answered with:
