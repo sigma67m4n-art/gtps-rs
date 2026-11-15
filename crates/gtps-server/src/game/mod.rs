@@ -333,7 +333,10 @@ impl Game {
 
     fn enter_world(&mut self, peer: PeerId, world_name: &str) {
         if !is_valid_world_name(world_name) {
-            logging::warn(format!("peer {} asked for an invalid world name", peer.index()));
+            logging::warn(format!(
+                "peer {} asked for an invalid world name",
+                peer.index()
+            ));
             let list = login::failed_to_enter();
             self.send_variant(peer, &list, framing::NET_ID_BROADCAST, 0);
             return;
@@ -508,7 +511,8 @@ impl Game {
         if let Some(index) = gtps_world::World::index(x, y) {
             match locks::by_item(item) {
                 Some(spec) => {
-                    self.worlds.ensure_magplant(&world_name, index, spec.item_id);
+                    self.worlds
+                        .ensure_magplant(&world_name, index, spec.item_id);
                 }
                 None => self.worlds.remove_magplant(&world_name, index),
             }
@@ -633,9 +637,7 @@ impl Game {
     }
 
     fn farm_reach(&self, session: &Session) -> Option<(usize, usize, usize)> {
-        if session.world.is_none() {
-            return None;
-        }
+        session.world.as_ref()?;
 
         let range = if session.inventory.count_of(locks::RAYMAN_FIST) > 0 {
             locks::RAYMAN_FIST_RANGE

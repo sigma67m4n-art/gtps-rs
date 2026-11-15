@@ -30,9 +30,7 @@ pub fn telephone_dialog(gems: u32) -> VariantList {
         "add_label_with_icon|small|`wLock Shop``|left|{TELEPHONE_ITEM}|\n"
     ));
     body.push_str("add_spacer|small|\n");
-    body.push_str(&format!(
-        "add_textbox|`wYour Gems: `9{gems}``|left|\n"
-    ));
+    body.push_str(&format!("add_textbox|`wYour Gems: `9{gems}``|left|\n"));
     body.push_str("add_spacer|small|\n");
 
     for kind in [LockKind::Diamond, LockKind::BlueGem] {

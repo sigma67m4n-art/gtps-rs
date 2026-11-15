@@ -190,7 +190,10 @@ mod tests {
     fn only_diamond_and_blue_gem_are_sold() {
         let sold: Vec<_> = super::for_sale().map(|spec| spec.kind).collect();
         assert_eq!(sold, vec![LockKind::Diamond, LockKind::BlueGem]);
-        assert_eq!(by_item(12886).map(|spec| spec.kind), Some(LockKind::BlueGem));
+        assert_eq!(
+            by_item(12886).map(|spec| spec.kind),
+            Some(LockKind::BlueGem)
+        );
         assert_eq!(sold[0].sale_button(), "buy_diamond");
         assert_eq!(sold[1].sale_button(), "buy_bluegem");
         assert!(by_kind(LockKind::Royal).shop_price == 0);
