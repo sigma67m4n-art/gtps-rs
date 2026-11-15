@@ -25,6 +25,8 @@ pub struct Session {
     pub inventory: Inventory,
     pub cheats: CheatState,
     pub active_magplant: Option<usize>,
+    pub tax_credits: u64,
+    pub growtokens: u32,
 }
 
 impl Session {
@@ -44,6 +46,8 @@ impl Session {
             inventory: Inventory::default(),
             cheats: CheatState::default(),
             active_magplant: None,
+            tax_credits: 0,
+            growtokens: 0,
         }
     }
 

@@ -199,6 +199,7 @@ impl Game {
         self.send_variant(peer, &motd, framing::NET_ID_BROADCAST, 0);
 
         self.send_gems(peer);
+        self.send_tokens(peer);
     }
 
     fn on_action(&mut self, peer: PeerId, action: &str, text: &Text) {
@@ -259,26 +260,61 @@ impl Game {
             return;
         }
 
-        let Some(spec) = shop::lock_button(text) else {
+        if shop::wants_exchange(text) {
+            self.exchange_tokens(peer);
+            self.open_lock_shop(peer);
             return;
-        };
+        }
 
+        if let Some(spec) = shop::lock_button(text) {
+            self.buy_lock(peer, spec);
+            self.open_lock_shop(peer);
+        }
+    }
+
+    fn buy_lock(&mut self, peer: PeerId, spec: &locks::LockSpec) {
         let price = u32::try_from(locks::total_with_tax(spec.shop_price)).unwrap_or(u32::MAX);
-        let affordable = self.sessions.get(&peer).is_some_and(|s| s.gems >= price);
+        let tax = u32::try_from(locks::tax(spec.shop_price)).unwrap_or(0);
 
-        if !affordable {
-            self.console(peer, "You do not have enough gems for that lock.");
+        let can_buy = self
+            .sessions
+            .get(&peer)
+            .is_some_and(|session| session.gems >= price && session.inventory.can_add(spec.item_id));
+
+        if !can_buy {
+            self.console(peer, "You cannot buy that lock right now.");
             return;
         }
 
         if let Some(session) = self.sessions.get_mut(&peer) {
             session.gems -= price;
+            session.tax_credits += u64::from(tax);
             session.inventory.add(spec.item_id, 1);
         }
 
         self.send_gems(peer);
         self.console(peer, &format!("Bought {} for {price} gems.", spec.name));
-        self.open_lock_shop(peer);
+    }
+
+    fn exchange_tokens(&mut self, peer: PeerId) {
+        let credits = self
+            .sessions
+            .get(&peer)
+            .map_or(0, |session| session.tax_credits);
+        let (tokens, remaining) = economy::exchange_tokens(credits);
+
+        if tokens == 0 {
+            self.console(peer, "You need more tax credit to exchange.");
+            return;
+        }
+
+        if let Some(session) = self.sessions.get_mut(&peer) {
+            session.tax_credits = remaining;
+            session.growtokens = session.growtokens.saturating_add(tokens);
+        }
+
+        self.send_tokens(peer);
+        self.console(peer, &format!("Exchanged {tokens} Growtokens."));
     }
 
     fn convert_blue_gem(&mut self, peer: PeerId) {
@@ -286,12 +322,11 @@ impl Game {
         let blue_gem = locks::by_kind(locks::LockKind::BlueGem).item_id;
         let needed = locks::DIAMOND_PER_BLUE_GEM;
 
-        let enough = self
-            .sessions
-            .get(&peer)
-            .is_some_and(|session| session.inventory.count_of(diamond) >= needed);
+        let ready = self.sessions.get(&peer).is_some_and(|session| {
+            session.inventory.count_of(diamond) >= needed && session.inventory.can_add(blue_gem)
+        });
 
-        if !enough {
+        if !ready {
             self.console(
                 peer,
                 &format!("You need {needed} Diamond Locks to convert."),
@@ -327,8 +362,13 @@ impl Game {
     }
 
     fn open_lock_shop(&mut self, peer: PeerId) {
-        let gems = self.sessions.get(&peer).map_or(0, |session| session.gems);
-        let dialog = shop::telephone_dialog(gems);
+        let (gems, credits, growtokens) = self
+            .sessions
+            .get(&peer)
+            .map_or((0, 0, 0), |session| {
+                (session.gems, session.tax_credits, session.growtokens)
+            });
+        let dialog = shop::telephone_dialog(gems, credits, growtokens);
         self.send_variant(peer, &dialog, framing::NET_ID_BROADCAST, 0);
     }
 
@@ -347,6 +387,15 @@ impl Game {
         };
 
         let list = VariantList::new("OnSetBux").arg(Variant::Int(gems as i32));
+        self.send_variant(peer, &list, framing::NET_ID_BROADCAST, 0);
+    }
+
+    fn send_tokens(&mut self, peer: PeerId) {
+        let Some(tokens) = self.sessions.get(&peer).map(|session| session.growtokens) else {
+            return;
+        };
+
+        let list = VariantList::new("OnSetGrowTokens").arg(Variant::Int(tokens as i32));
         self.send_variant(peer, &list, framing::NET_ID_BROADCAST, 0);
     }
 

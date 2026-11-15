@@ -4,8 +4,7 @@ pub const FIST_RANGE: usize = 1;
 pub const RAYMAN_FIST_RANGE: usize = 3;
 pub const DIAMOND_PER_BLUE_GEM: u32 = 100;
 
-pub const MILLION: u64 = 1_000_000;
-pub const TAX_PER_MILLION: u64 = 50_000;
+pub const TAX_PERCENT: u64 = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LockKind {
@@ -94,7 +93,7 @@ pub fn multiplier_percent(lock_item: u16) -> u32 {
 
 #[must_use]
 pub fn tax(price: u64) -> u64 {
-    (price / MILLION) * TAX_PER_MILLION
+    price * TAX_PERCENT / 100
 }
 
 #[must_use]
@@ -135,7 +134,7 @@ impl Magplant {
 mod tests {
     use super::{
         by_item, by_kind, magplant_stock, multiplier_percent, tax, total_with_tax, LockKind,
-        Magplant, MILLION,
+        Magplant,
     };
 
     #[test]
@@ -155,11 +154,12 @@ mod tests {
     }
 
     #[test]
-    fn tax_is_five_percent_per_million() {
-        assert_eq!(tax(100_000), 0);
-        assert_eq!(tax(MILLION), 50_000);
-        assert_eq!(tax(10 * MILLION), 500_000);
-        assert_eq!(total_with_tax(10 * MILLION), 10_500_000);
+    fn tax_is_five_percent() {
+        assert_eq!(tax(100_000), 5_000);
+        assert_eq!(tax(1_000_000), 50_000);
+        assert_eq!(tax(10_000_000), 500_000);
+        assert_eq!(total_with_tax(100_000), 105_000);
+        assert_eq!(total_with_tax(10_000_000), 10_500_000);
     }
 
     #[test]

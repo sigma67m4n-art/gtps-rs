@@ -78,13 +78,22 @@ and dial the service number `53785` to reach the lock service:
 
 | option | cost |
 | --- | --- |
-| Diamond Lock | 100,000 gems |
+| Diamond Lock | 100,000 gems (+ 5,000 tax) |
 | Blue Gem Lock | 10,000,000 gems (+ 500,000 tax) |
 | Convert to Blue Gem Lock | 100 Diamond Locks |
+| Convert tax to Growtokens | 100,000 tax credit per token |
 
-Diamond Locks can only be bought. Blue Gem Locks can be bought or converted
-from `100` Diamond Locks. Tax is `5%` of every full `1,000,000` gems (`50,000`
-per million).
+Tax is `5%` of the price. The tax you pay is not lost: it becomes **tax
+credit**, which can be exchanged for **Growtokens** at `100,000` credit per
+token. A Growtoken therefore costs at least `2,000,000` gems of spending, which
+keeps the Growtoken supply scarce and guards against inflation.
+
+## Anti-dupe
+
+Items are removed from the inventory *before* they are placed or converted,
+purchases check gems and inventory space atomically, and a world object can only
+be collected once (`remove_object` returns `None` on the second attempt), so no
+action can mint items twice.
 
 ## Magplants
 

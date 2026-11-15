@@ -178,9 +178,19 @@ pub fn cycle_gems(farmable: &Farmable, multiplier_percent: u32, roll: u32) -> u3
     harvest + breaking
 }
 
+pub const GEMS_PER_GROWTOKEN: u64 = 100_000;
+
+#[must_use]
+pub fn exchange_tokens(credits: u64) -> (u32, u64) {
+    let tokens = u32::try_from(credits / GEMS_PER_GROWTOKEN).unwrap_or(u32::MAX);
+    let spent = u64::from(tokens) * GEMS_PER_GROWTOKEN;
+
+    (tokens, credits - spent)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{cycle_gems, harvest_gems, highest, payout, table, Tier, Yield};
+    use super::{cycle_gems, exchange_tokens, harvest_gems, highest, payout, table, Tier, Yield};
 
     #[test]
     fn table_is_sorted_by_break_gems() {
@@ -271,5 +281,14 @@ mod tests {
             let value = payout(rock, Yield::Break, 100, roll);
             assert!((low..=high).contains(&value), "roll {roll} -> {value}");
         }
+    }
+
+    #[test]
+    fn growtokens_stay_scarce() {
+        let rate = super::GEMS_PER_GROWTOKEN;
+        assert!(rate >= 100_000);
+        assert_eq!(exchange_tokens(rate - 1), (0, rate - 1));
+        assert_eq!(exchange_tokens(rate), (1, 0));
+        assert_eq!(exchange_tokens(rate * 3 + 42), (3, 42));
     }
 }

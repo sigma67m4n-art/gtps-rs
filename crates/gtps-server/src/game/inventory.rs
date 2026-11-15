@@ -89,6 +89,11 @@ impl Inventory {
     }
 
     #[must_use]
+    pub fn can_add(&self, id: u16) -> bool {
+        self.items.iter().any(|item| item.id == id) || self.items.len() < self.capacity as usize
+    }
+
+    #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let mut writer = Writer::with_capacity(9 + self.items.len() * 4);
         writer.u8(1);
@@ -136,5 +141,15 @@ mod tests {
         assert_eq!(decoded.capacity(), inventory.capacity());
         assert_eq!(decoded.count_of(items::DIRT), 5);
         assert_eq!(decoded.count_of(items::FIST), 1);
+    }
+
+    #[test]
+    fn can_add_reports_capacity() {
+        let mut inventory = Inventory::default();
+        assert!(inventory.can_add(items::DIRT));
+
+        inventory.set_capacity(inventory.items().len() as u32);
+        assert!(!inventory.can_add(items::ROCK));
+        assert!(inventory.can_add(items::FIST));
     }
 }
