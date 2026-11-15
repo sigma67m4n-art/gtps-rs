@@ -21,7 +21,11 @@ fn pump(
         if ready(game, &messages) {
             return messages;
         }
-        assert!(Instant::now() < deadline, "ENet gameplay test timed out; received {} messages", messages.len());
+        assert!(
+            Instant::now() < deadline,
+            "ENet gameplay test timed out; received {} messages",
+            messages.len()
+        );
     }
 }
 

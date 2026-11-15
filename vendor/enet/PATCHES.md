@@ -37,3 +37,7 @@ added on top:
 `crates/gtps-enet/src/shim.c` also sets `checksum = enet_crc32` and installs the
 range coder on both host roles, because a Growtopia client silently drops hosts
 that do not.
+
+The send path writes `sentTime` through the header selected for that host role.
+Writing it at the new-header offset for server packets left the legacy timestamp
+uninitialized, causing unreliable acknowledgment timing during large transfers.

@@ -1747,7 +1747,10 @@ enet_protocol_send_outgoing_commands (ENetHost * host, ENetEvent * event, int ch
         host -> buffers -> data = headerData;
         if (host -> headerFlags & ENET_PROTOCOL_HEADER_FLAG_SENT_TIME)
         {
-            newHeader -> sentTime = ENET_HOST_TO_NET_16 (host -> serviceTime & 0xFFFF);
+            if (host -> usingNewPacket)
+              newHeader -> sentTime = ENET_HOST_TO_NET_16 (host -> serviceTime & 0xFFFF);
+            else
+              header -> sentTime = ENET_HOST_TO_NET_16 (host -> serviceTime & 0xFFFF);
 
             host -> buffers -> dataLength = headerSize;
         }
@@ -1992,4 +1995,3 @@ enet_host_service (ENetHost * host, ENetEvent * event, enet_uint32 timeout)
     } while (waitCondition & ENET_SOCKET_WAIT_RECEIVE);
     return 0; 
 }
-
