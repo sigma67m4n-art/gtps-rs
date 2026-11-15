@@ -1,4 +1,4 @@
-use crate::cursor::{Result, Writer};
+use crate::cursor::Writer;
 
 pub const TYPE_FLOAT: u8 = 1;
 pub const TYPE_STRING: u8 = 2;

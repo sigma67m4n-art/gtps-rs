@@ -154,7 +154,7 @@ impl Host {
     }
 
     pub fn flush(&mut self) {
-        unsafe { sys::gtps_enet_host_flush(self.raw) };
+        unsafe { sys::enet_host_flush(self.raw) };
     }
 
     #[must_use]
