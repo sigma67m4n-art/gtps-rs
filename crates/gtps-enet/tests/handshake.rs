@@ -18,7 +18,9 @@ fn client_and_server_exchange_a_reliable_packet() {
     let mut server = Host::server(server_addr, 8, 2).expect("server host");
     let mut client = Host::client(client_addr, 1, 2).expect("client host");
 
-    client.connect(server_addr, 2, 0x1122_3344).expect("connect");
+    client
+        .connect(server_addr, 2, 0x1122_3344)
+        .expect("connect");
 
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut server_peer = None;

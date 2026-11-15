@@ -59,25 +59,25 @@ impl TankPacket {
     }
 
     pub fn decode(reader: &mut Reader<'_>) -> Result<Self> {
-        let mut packet = Self::default();
-        packet.kind = reader.u8()?;
-        packet.pad1 = reader.u8()?;
-        packet.pad2 = reader.u8()?;
-        packet.pad3 = reader.u8()?;
-        packet.net_id = reader.i32()?;
-        packet.secondary_id = reader.i32()?;
-        packet.flags = reader.u32()?;
-        packet.float1 = reader.f32()?;
-        packet.int_data = reader.i32()?;
-        packet.pos_x = reader.f32()?;
-        packet.pos_y = reader.f32()?;
-        packet.speed_x = reader.f32()?;
-        packet.speed_y = reader.f32()?;
-        packet.float2 = reader.f32()?;
-        packet.tile_x = reader.i32()?;
-        packet.tile_y = reader.i32()?;
-        packet.data_size = reader.u32()?;
-        Ok(packet)
+        Ok(Self {
+            kind: reader.u8()?,
+            pad1: reader.u8()?,
+            pad2: reader.u8()?,
+            pad3: reader.u8()?,
+            net_id: reader.i32()?,
+            secondary_id: reader.i32()?,
+            flags: reader.u32()?,
+            float1: reader.f32()?,
+            int_data: reader.i32()?,
+            pos_x: reader.f32()?,
+            pos_y: reader.f32()?,
+            speed_x: reader.f32()?,
+            speed_y: reader.f32()?,
+            float2: reader.f32()?,
+            tile_x: reader.i32()?,
+            tile_y: reader.i32()?,
+            data_size: reader.u32()?,
+        })
     }
 
     pub fn encode(&self, writer: &mut Writer) {

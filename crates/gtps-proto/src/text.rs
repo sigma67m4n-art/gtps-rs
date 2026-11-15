@@ -4,7 +4,9 @@ pub struct Text {
 }
 
 fn to_field(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).trim_end_matches('\r').to_string()
+    String::from_utf8_lossy(bytes)
+        .trim_end_matches('\r')
+        .to_string()
 }
 
 impl Text {

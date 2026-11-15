@@ -300,10 +300,7 @@ impl Game {
         let Some(world_name) = session.world.clone() else {
             return;
         };
-        let (Ok(x), Ok(y)) = (
-            usize::try_from(tank.tile_x),
-            usize::try_from(tank.tile_y),
-        ) else {
+        let (Ok(x), Ok(y)) = (usize::try_from(tank.tile_x), usize::try_from(tank.tile_y)) else {
             return;
         };
 

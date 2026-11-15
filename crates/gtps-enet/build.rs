@@ -9,8 +9,15 @@ fn main() {
     build.include(&include);
     build.warnings(false);
 
-    for file in ["callbacks.c", "compress.c", "host.c", "list.c", "packet.c", "peer.c", "protocol.c"]
-    {
+    for file in [
+        "callbacks.c",
+        "compress.c",
+        "host.c",
+        "list.c",
+        "packet.c",
+        "peer.c",
+        "protocol.c",
+    ] {
         build.file(enet.join(file));
     }
 

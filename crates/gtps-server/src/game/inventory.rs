@@ -55,7 +55,11 @@ impl Inventory {
             return false;
         }
 
-        self.items.push(Item { id, count, flags: 0 });
+        self.items.push(Item {
+            id,
+            count,
+            flags: 0,
+        });
         true
     }
 

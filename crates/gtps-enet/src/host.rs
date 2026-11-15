@@ -15,9 +15,19 @@ pub enum Role {
 
 #[derive(Debug)]
 pub enum Event {
-    Connect { peer: PeerId, data: u32 },
-    Disconnect { peer: PeerId, data: u32 },
-    Receive { peer: PeerId, channel: u8, packet: Packet },
+    Connect {
+        peer: PeerId,
+        data: u32,
+    },
+    Disconnect {
+        peer: PeerId,
+        data: u32,
+    },
+    Receive {
+        peer: PeerId,
+        channel: u8,
+        packet: Packet,
+    },
 }
 
 pub struct Host {
@@ -142,7 +152,9 @@ impl Host {
     }
 
     pub fn send(&mut self, peer: PeerId, channel: u8, packet: Packet) -> Result<(), Error> {
-        let raw = self.raw_peer(peer).ok_or_else(|| Error::new("unknown peer"))?;
+        let raw = self
+            .raw_peer(peer)
+            .ok_or_else(|| Error::new("unknown peer"))?;
         let raw_packet = packet.into_raw();
 
         if unsafe { sys::gtps_enet_peer_send(raw, channel, raw_packet) } != 0 {

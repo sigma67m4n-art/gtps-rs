@@ -59,7 +59,11 @@ extern "C" {
         data: u32,
     ) -> *mut ENetPeer;
 
-    pub fn gtps_enet_host_service(host: *mut ENetHost, event: *mut c_void, timeout_ms: u32) -> c_int;
+    pub fn gtps_enet_host_service(
+        host: *mut ENetHost,
+        event: *mut c_void,
+        timeout_ms: u32,
+    ) -> c_int;
     pub fn gtps_enet_host_peer(host: *mut ENetHost, id: u32) -> *mut ENetPeer;
     pub fn gtps_enet_host_connected_peers(host: *const ENetHost) -> usize;
 

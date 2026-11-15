@@ -10,7 +10,9 @@ pub fn hash_data(data: &[u8]) -> u32 {
     let mut acc = HASH_SEED;
 
     for byte in data {
-        acc = (acc >> 27).wrapping_add(acc << 5).wrapping_add(u32::from(*byte));
+        acc = (acc >> 27)
+            .wrapping_add(acc << 5)
+            .wrapping_add(u32::from(*byte));
     }
 
     acc

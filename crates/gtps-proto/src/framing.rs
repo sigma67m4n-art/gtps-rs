@@ -141,7 +141,10 @@ mod tests {
         tank.set_extended(3);
 
         let frame = game_packet(&tank, &[1, 2, 3]);
-        assert_eq!(u32::from_le_bytes([frame[0], frame[1], frame[2], frame[3]]), MSG_GAME_PACKET);
+        assert_eq!(
+            u32::from_le_bytes([frame[0], frame[1], frame[2], frame[3]]),
+            MSG_GAME_PACKET
+        );
 
         match Message::decode(&frame).expect("decode") {
             Message::GamePacket { tank, extra } => {
