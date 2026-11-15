@@ -3,6 +3,7 @@ use gtps_world::items;
 
 pub const MAX_STACK: u8 = 250;
 pub const DEFAULT_CAPACITY: u32 = 596;
+pub const WOODEN_PLATFORM: u16 = 102;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Item {
@@ -33,6 +34,10 @@ impl Inventory {
     pub fn starter() -> Self {
         let mut inventory = Self::default();
         inventory.add(super::economy::highest().block_id, MAX_STACK);
+        inventory.add(super::economy::highest().seed_id, MAX_STACK);
+        inventory.add(WOODEN_PLATFORM, MAX_STACK);
+        inventory.add(super::economy::ULTRA_WORLD_SPRAY, 1);
+        inventory.add(super::locks::MY_FIRST_WORLD_LOCK, 1);
         inventory.add(super::tools::RIPPER_WINGS, 1);
         inventory.add(super::tools::PICKAXE, 1);
         inventory
@@ -160,6 +165,10 @@ mod tests {
     fn starter_and_stack_limit_round_trip() {
         let mut inventory = Inventory::starter();
         assert_eq!(inventory.count_of(542), 250);
+        assert_eq!(inventory.count_of(543), 250);
+        assert_eq!(inventory.count_of(102), 250);
+        assert_eq!(inventory.count_of(12600), 1);
+        assert_eq!(inventory.count_of(9640), 1);
         assert_eq!(inventory.count_of(98), 1);
         assert_eq!(inventory.count_of(818), 1);
         assert!(!inventory.add(542, 1));

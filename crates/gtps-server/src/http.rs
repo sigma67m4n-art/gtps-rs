@@ -54,6 +54,23 @@ fn handle(
 ) {
     let url = request.url().to_string();
     let (path, query) = url.split_once('?').unwrap_or((&url, ""));
+    if matches!(path, "/custom-icons.rttex" | "/game/custom-icons.rttex" | "/game/tiles/custom-icons.rttex") {
+        let response = Response::from_data(crate::game::assets::TEXTURE)
+            .with_header(Header::from_bytes("Content-Type", "application/octet-stream").expect("static header"));
+        let _ = request.respond(response);
+        return;
+    }
+    if let Some(asset) = path.strip_prefix("/game/") {
+        if !asset.is_empty()
+            && asset.split('/').all(|part| !part.is_empty() && part != "." && part != "..")
+            && asset.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"/_.-".contains(&byte))
+        {
+            reply(request, 302, "text/plain", String::new(), Some(format!("{}{asset}", config.vanilla_cdn_url)));
+        } else {
+            reply(request, 404, "text/plain", "Not found".into(), None);
+        }
+        return;
+    }
     if path == "/health" {
         reply(
             request,

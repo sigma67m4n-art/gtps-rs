@@ -48,7 +48,7 @@ pub fn cycle_gems(farmable: &Farmable, multiplier_percent: u32, roll: u32) -> u3
 pub const GEMS_PER_GROWTOKEN: u64 = 100_000;
 pub const GEMS_PER_SPRAY_TOKEN: u64 = 1_000_000;
 pub const SPRAY_TOKEN_ICON: u16 = 4212;
-pub const ULTRA_WORLD_SPRAY: u16 = 60006;
+pub const ULTRA_WORLD_SPRAY: u16 = 12600;
 pub const ULTRA_WORLD_SPRAY_PRICE: u32 = 5;
 
 fn exchange(credits: u64, rate: u64) -> (u32, u64) {

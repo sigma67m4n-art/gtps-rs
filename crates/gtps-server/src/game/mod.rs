@@ -1,5 +1,6 @@
 pub mod acquisition;
 mod admin;
+pub(crate) mod assets;
 pub mod blast;
 pub mod cheats;
 pub mod economy;
@@ -13,6 +14,8 @@ pub mod session;
 pub mod shop;
 pub mod tools;
 pub mod world;
+#[cfg(test)]
+mod integration_tests;
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -60,6 +63,10 @@ fn is_valid_world_name(name: &str) -> bool {
 fn load_items(config: &Config) -> Option<ItemsDat> {
     match ItemsDat::load(&config.items_path) {
         Ok(mut items) => {
+            if let Err(error) = assets::install(&mut items) {
+                logging::warn(format!("custom item database failed: {error}"));
+                return None;
+            }
             items.set_stack_limit(inventory::MAX_STACK);
             items.configure_farmable(economy::highest().block_id, economy::highest().hits as u8);
             logging::info(format!(
@@ -257,7 +264,7 @@ impl Game {
             state.apply(session);
         } else {
             session.inventory = inventory::Inventory::starter();
-            session.inventory.set_capacity(capacity.max(5));
+            session.inventory.set_capacity(capacity.max(9));
         }
 
         logging::info(format!(
@@ -266,7 +273,7 @@ impl Game {
         ));
 
         let hash = self.items.as_ref().map_or(0, ItemsDat::hash);
-        let welcome = login::super_main_start(hash, &self.config.cdn_host);
+        let welcome = login::super_main_start(hash, &self.config.cdn_host, &self.config.cdn_path);
         self.send_variant(peer, &welcome, framing::NET_ID_BROADCAST, 0);
 
         let motd = login::console_message(&self.config.motd);
@@ -1150,6 +1157,9 @@ impl Game {
                 return;
             }
             let definition = self.items.as_ref().and_then(|db| db.get(item));
+            if !definition.is_some_and(|definition| definition.available) {
+                return;
+            }
             let is_seed = definition.is_some_and(|item| item.kind == 19);
             if definition.is_some_and(|definition| definition.kind == 20)
                 || (is_seed && item != economy::highest().seed_id)

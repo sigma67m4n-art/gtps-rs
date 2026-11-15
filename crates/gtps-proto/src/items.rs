@@ -13,6 +13,17 @@ pub struct ItemDefinition {
     pub grow_seconds: u32,
     max_amount_offset: usize,
     offset: usize,
+    end: usize,
+    texture_offset: usize,
+    properties_offset: usize,
+    pub available: bool,
+}
+
+pub struct CustomItem<'a> {
+    pub id: u16,
+    pub template: u16,
+    pub name: &'a str,
+    pub texture: Option<(&'a str, u32, u8, u8)>,
 }
 
 fn skip_string(reader: &mut Reader<'_>) -> Result<()> {
@@ -28,8 +39,11 @@ fn definition(reader: &mut Reader<'_>, version: u16, expected: u32) -> Result<It
     reader.skip(2)?;
     let kind = reader.u8()?;
     reader.skip(1)?;
+    let name_length = reader.u16()?;
+    reader.skip(usize::from(name_length))?;
+    let texture_offset = reader.position();
     skip_string(reader)?;
-    skip_string(reader)?;
+    let properties_offset = reader.position();
     reader.skip(13)?;
     let collision = reader.u8()?;
     let hits = u32::from(reader.u8()?).div_ceil(6).max(1);
@@ -105,6 +119,10 @@ fn definition(reader: &mut Reader<'_>, version: u16, expected: u32) -> Result<It
         grow_seconds,
         max_amount_offset,
         offset,
+        end: reader.position(),
+        texture_offset,
+        properties_offset,
+        available: name_length != 0,
     })
 }
 
@@ -131,6 +149,52 @@ pub struct ItemsDat {
 }
 
 impl ItemsDat {
+    pub fn append_custom(&mut self, items: &[CustomItem<'_>]) -> Result<()> {
+        let mut raw = self.raw.clone();
+        let mut count = self.count;
+        for item in items {
+            if u32::from(item.id) < count || item.name.len() > u16::MAX as usize {
+                return Err(ProtoError::new("invalid custom item ID or name"));
+            }
+            let template = self.get(item.template).ok_or_else(|| ProtoError::new("missing item template"))?;
+            while count < u32::from(item.id) {
+                let empty = self.get(0).ok_or_else(|| ProtoError::new("missing empty item template"))?;
+                let mut record = self.record(empty, count, "", None)?;
+                record[6] = 0;
+                raw.extend_from_slice(&record);
+                count += 1;
+            }
+            raw.extend_from_slice(&self.record(template, count, item.name, item.texture)?);
+            count += 1;
+        }
+        raw[2..6].copy_from_slice(&count.to_le_bytes());
+        *self = Self::parse(raw)?;
+        Ok(())
+    }
+
+    fn record(&self, template: &ItemDefinition, id: u32, name: &str, texture: Option<(&str, u32, u8, u8)>) -> Result<Vec<u8>> {
+        let mut record = self.raw[template.offset..template.offset + 8].to_vec();
+        record[..4].copy_from_slice(&id.to_le_bytes());
+        let key = b"PBG892FXX982ABC*";
+        record.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        record.extend(name.bytes().enumerate().map(|(index, byte)| byte ^ key[(id as usize + index) % key.len()]));
+        if let Some((path, hash, x, y)) = texture {
+            let length = u16::try_from(path.len()).map_err(|_| ProtoError::new("texture path too long"))?;
+            record.extend_from_slice(&length.to_le_bytes());
+            record.extend_from_slice(path.as_bytes());
+            let properties = record.len();
+            record.extend_from_slice(&self.raw[template.properties_offset..template.end]);
+            record[properties..properties + 4].copy_from_slice(&hash.to_le_bytes());
+            record[properties + 4] = 0;
+            record[properties + 9] = x;
+            record[properties + 10] = y;
+            record[properties + 11] = 1;
+        } else {
+            record.extend_from_slice(&self.raw[template.texture_offset..template.end]);
+        }
+        Ok(record)
+    }
+
     pub fn parse(raw: Vec<u8>) -> Result<Self> {
         let hash = hash_data(&raw);
         let mut reader = Reader::new(&raw);
@@ -250,5 +314,30 @@ mod tests {
     fn hash_matches_reference() {
         assert_eq!(hash_data(&[]), HASH_SEED);
         assert_eq!(hash_data(&[1]), 0xAAAA_AAAB);
+    }
+
+    #[test]
+    fn custom_records_rekey_names_and_encode_texture_coordinates() {
+        let mut db = super::ItemsDat::parse(include_bytes!("../../../data/items.dat").to_vec()).unwrap();
+        let original = db.raw.clone();
+        let name = "White Gem Lock";
+        db.append_custom(&[super::CustomItem {
+            id: 60004,
+            template: 7188,
+            name,
+            texture: Some(("custom-icons.rttex", 123456, 2, 0)),
+        }]).unwrap();
+        assert_eq!(&db.raw[6..original.len()], &original[6..]);
+        let definition = db.get(60004).unwrap();
+        let encrypted = &db.raw[definition.offset + 10..definition.texture_offset];
+        let key = b"PBG892FXX982ABC*";
+        let decoded: Vec<_> = encrypted.iter().enumerate().map(|(index, byte)| byte ^ key[(60004 + index) % key.len()]).collect();
+        assert_eq!(decoded, name.as_bytes());
+        let properties = definition.properties_offset;
+        assert_eq!(&db.raw[properties..properties + 4], &123456u32.to_le_bytes());
+        assert_eq!(&db.raw[properties + 9..properties + 12], &[2, 0, 1]);
+        let snapshot = db.raw.clone();
+        assert!(db.append_custom(&[super::CustomItem { id: 10, template: 2, name: "Invalid", texture: None }]).is_err());
+        assert_eq!(db.raw, snapshot);
     }
 }

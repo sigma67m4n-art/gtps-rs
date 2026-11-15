@@ -1,4 +1,5 @@
 pub const TELEPHONE_ITEM: u16 = 3898;
+pub const MY_FIRST_WORLD_LOCK: u16 = 9640;
 pub const DIAMOND_PER_BLUE_GEM: u32 = 100;
 pub const BLUE_GEM_PER_WHITE_GEM: u32 = 100;
 
@@ -71,6 +72,14 @@ pub const LOCKS: &[LockSpec] = &[
         item_id: 60004,
         magplant_stock: 500_000,
         gems_percent: 225,
+        shop_price: 0,
+    },
+    LockSpec {
+        kind: LockKind::World,
+        name: "My First World Lock",
+        item_id: MY_FIRST_WORLD_LOCK,
+        magplant_stock: 5_000,
+        gems_percent: 100,
         shop_price: 0,
     },
 ];
@@ -146,6 +155,8 @@ mod tests {
 
     #[test]
     fn magplant_stock_per_lock() {
+        assert_eq!(magplant_stock(super::MY_FIRST_WORLD_LOCK), 5_000);
+        assert_eq!(by_item(super::MY_FIRST_WORLD_LOCK).unwrap().kind, LockKind::World);
         assert_eq!(magplant_stock(by_kind(LockKind::World).item_id), 5_000);
         assert_eq!(magplant_stock(by_kind(LockKind::Diamond).item_id), 15_000);
         assert_eq!(magplant_stock(by_kind(LockKind::BlueGem).item_id), 50_000);

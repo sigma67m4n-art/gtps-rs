@@ -1,4 +1,4 @@
-use super::{acquisition, blast, locks, tools, Game};
+use super::{acquisition, locks, tools, Game};
 use gtps_enet::PeerId;
 use gtps_proto::{framing, Text, Variant, VariantList};
 
@@ -108,7 +108,7 @@ impl Game {
                 let item = args.next().and_then(|s| s.parse::<u16>().ok());
                 let amount = args.next().and_then(|s| s.parse::<u8>().ok()).filter(|n| (1..=super::inventory::MAX_STACK).contains(n));
                 if let (Some(item), Some(amount)) = (item, amount) {
-                    let known = self.items.as_ref().is_some_and(|db| u32::from(item) < db.count()) || blast::by_item(item).is_some() || locks::by_item(item).is_some();
+                    let known = self.items.as_ref().and_then(|db| db.get(item)).is_some_and(|definition| definition.available);
                     if !known || item == 0 || item == 112 || !acquisition::allows_world_reward(item) {
                         self.console(peer, "That item must use its normal acquisition route.");
                     } else if command == "/give" {

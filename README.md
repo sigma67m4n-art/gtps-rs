@@ -36,7 +36,9 @@ of 200 to 250 and configures Pot O' Gold as a six-hit foreground block.
 | GTPS_MAX_PEERS | 1024 |
 | GTPS_CHANNELS | 2 |
 | GTPS_LOG_LEVEL | info |
-| GTPS_CDN_HOST | ubistatic-a.akamaihd.net |
+| GTPS_CDN_HOST | 127.0.0.1:8080 |
+| GTPS_CDN_PATH | game/ |
+| GTPS_VANILLA_CDN_URL | https://ubistatic-a.akamaihd.net/0098/15230125103/cache/game/ |
 
 ## Accounts
 
@@ -61,8 +63,11 @@ host routing require a reverse proxy; the built-in listener uses HTTP.
 
 ## Starter pack and farming
 
-A new account receives **250 Pot O' Gold (`542`), one Ripper Wings (`818`), one
-Pickaxe (`98`), Fist and Wrench** on its first game login. Reconnecting restores
+A new account receives **250 Pot O' Gold (`542`), 250 Pot O' Gold Seeds (`543`),
+250 Wooden Platforms (`102`), one Ultra World Spray (`12600`), one Ripper Wings
+(`818`), one Pickaxe (`98`), one My First World Lock (`9640`), Fist and Wrench**
+on its first game login. My First World Lock claims world ownership and uses the
+WL tier (5,000 Magplant stock, 1× gems). Reconnecting restores
 the saved inventory. Inventory stacks hold at most **250** items.
 
 Pot O' Gold is the only farmable. Breaking it takes six normal hits and pays
@@ -98,7 +103,7 @@ Activate or wrench Telephone (`3898`) and dial:
 | --- | --- |
 | 53785 | Sales-Man: DL 100,000 gems +5%; BGL 10,000,000 gems +5% |
 | 12345 | 100,000 tax credit per Growtoken; 1,000,000 per Tourney Token |
-| 53675 | Ultra World Spray for five Tourney Tokens |
+| 53675 | Ultra World Spray (vanilla ID 12600) for five Tourney Tokens |
 
 Sales-Man converts 100 DL to one BGL, or 100 BGL to one White Gem Lock.
 Tourney Tokens (`4212`) are a service balance available only from tax exchange.
@@ -140,19 +145,28 @@ nonce. Seed support, punch cooldown, world ownership and role checks run server-
 
 ## Custom client assets
 
-Legendary/Mythical Rayman must use Creative PS artwork. Their assets are still
-unavailable. White Gem Lock needs a white BGL icon. The custom IDs are reserved
-outside the vanilla database to avoid overwriting existing items:
+The served database includes custom definitions and a bundled RTTEX atlas.
+Legendary/Mythical artwork is extracted from the supplied Creative PS references;
+White Gem Lock is a white recolor of the BGL icon. See `assets/preview.png` and
+`assets/README.md` for provenance. Custom IDs are outside the vanilla range:
 
 | Item | ID |
 | --- | --- |
 | Legendary Infinity Rayman's Fist | 60000 |
 | Mythical Infinity Rayman's Fist | 60002 |
 | White Gem Lock | 60004 |
-| Ultra World Spray | 60006 |
 | Small Blast (50×50) | 60008 |
 | Large Blast (200×200) | 60010 |
 
-Their server behavior exists, but the corresponding client definitions and
-sprite pack have not been installed. Retail client rendering and movement
-effects still need an actual-client validation pass.
+Small/Large Blasts reuse the vanilla Thermonuclear Blast icon. Ultra World Spray
+uses vanilla ID 12600 and its original texture. Reserved gaps cannot be given
+or placed. Custom definitions are generated at startup; `data/items.dat` stays vanilla.
+
+The HTTP listener serves `/game/tiles/custom-icons.rttex` and
+`/game/custom-icons.rttex`; other `/game/` asset requests redirect to the configured
+vanilla CDN. Set `GTPS_CDN_HOST` to the client-reachable asset host, and route
+`/game/` to this listener through your HTTPS reverse proxy for retail clients.
+`GTPS_CDN_PATH` defaults to `game/`; keep it aligned with the proxy routes.
+Retail-client rendering, CDN redirect handling and movement effects still need
+an actual-client validation pass. The reference images are compressed, so the
+Infinity sprites are not verified pixel-identical copies of the original assets.

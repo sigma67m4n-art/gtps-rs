@@ -51,11 +51,11 @@ impl LoginRequest {
 }
 
 #[must_use]
-pub fn super_main_start(items_hash: u32, cdn_host: &str) -> VariantList {
+pub fn super_main_start(items_hash: u32, cdn_host: &str, cdn_path: &str) -> VariantList {
     VariantList::new("OnSuperMainStart")
         .arg(Variant::Uint(items_hash))
         .arg(Variant::String(cdn_host.to_string()))
-        .arg(Variant::String(String::new()))
+        .arg(Variant::String(cdn_path.to_string()))
 }
 
 #[must_use]
