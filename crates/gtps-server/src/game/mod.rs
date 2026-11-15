@@ -292,7 +292,10 @@ impl Game {
             .is_some_and(|session| session.inventory.count_of(diamond) >= needed);
 
         if !enough {
-            self.console(peer, &format!("You need {needed} Diamond Locks to convert."));
+            self.console(
+                peer,
+                &format!("You need {needed} Diamond Locks to convert."),
+            );
             return;
         }
 

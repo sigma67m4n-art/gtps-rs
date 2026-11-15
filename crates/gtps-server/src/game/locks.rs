@@ -179,7 +179,10 @@ mod tests {
 
         assert!(diamond.shop_price > 0);
         assert!(blue_gem.shop_price > 0);
-        assert_eq!(by_item(12886).map(|spec| spec.kind), Some(LockKind::BlueGem));
+        assert_eq!(
+            by_item(12886).map(|spec| spec.kind),
+            Some(LockKind::BlueGem)
+        );
         assert_eq!(by_kind(LockKind::Royal).shop_price, 0);
         assert_eq!(super::DIAMOND_PER_BLUE_GEM, 100);
     }
