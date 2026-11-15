@@ -225,7 +225,6 @@ impl Game {
 
         match message.trim().to_lowercase().as_str() {
             "/cheats" => self.open_cheats(peer),
-            "/shop" => self.open_telephone(peer),
             "/gems" => {
                 let gems = self.sessions.get(&peer).map_or(0, |session| session.gems);
                 self.console(peer, &format!("You have {gems} gems."));
@@ -236,15 +235,31 @@ impl Game {
 
     fn on_dialog_return(&mut self, peer: PeerId, text: &Text) {
         match text.get("dialog_name") {
+            Some(shop::DIALOG_TELEPHONE_DIAL) => self.on_dial_return(peer, text),
             Some(shop::DIALOG_TELEPHONE) => self.on_telephone_return(peer, text),
             Some(shop::DIALOG_CHEATS) => self.on_cheats_return(peer, text),
             _ => {}
         }
     }
 
+    fn on_dial_return(&mut self, peer: PeerId, text: &Text) {
+        let number = text.get("number").unwrap_or("");
+
+        if shop::is_service_number(number) {
+            self.open_lock_shop(peer);
+        } else if !number.trim().is_empty() {
+            self.console(peer, "The number you dialed is not in service.");
+        }
+    }
+
     fn on_telephone_return(&mut self, peer: PeerId, text: &Text) {
+        if shop::wants_conversion(text) {
+            self.convert_blue_gem(peer);
+            self.open_lock_shop(peer);
+            return;
+        }
+
         let Some(spec) = shop::lock_button(text) else {
-            self.open_telephone(peer);
             return;
         };
 
@@ -263,6 +278,34 @@ impl Game {
 
         self.send_gems(peer);
         self.console(peer, &format!("Bought {} for {price} gems.", spec.name));
+        self.open_lock_shop(peer);
+    }
+
+    fn convert_blue_gem(&mut self, peer: PeerId) {
+        let diamond = locks::by_kind(locks::LockKind::Diamond).item_id;
+        let blue_gem = locks::by_kind(locks::LockKind::BlueGem).item_id;
+        let needed = locks::DIAMOND_PER_BLUE_GEM;
+
+        let enough = self
+            .sessions
+            .get(&peer)
+            .is_some_and(|session| session.inventory.count_of(diamond) >= needed);
+
+        if !enough {
+            self.console(peer, &format!("You need {needed} Diamond Locks to convert."));
+            return;
+        }
+
+        let converted = self.sessions.get_mut(&peer).is_some_and(|session| {
+            session.inventory.remove(diamond, needed as u8) && session.inventory.add(blue_gem, 1)
+        });
+
+        if converted {
+            self.console(
+                peer,
+                &format!("Converted {needed} Diamond Locks into a Blue Gem Lock."),
+            );
+        }
     }
 
     fn on_cheats_return(&mut self, peer: PeerId, text: &Text) {
@@ -276,6 +319,11 @@ impl Game {
     }
 
     fn open_telephone(&mut self, peer: PeerId) {
+        let dialog = shop::dial_dialog();
+        self.send_variant(peer, &dialog, framing::NET_ID_BROADCAST, 0);
+    }
+
+    fn open_lock_shop(&mut self, peer: PeerId) {
         let gems = self.sessions.get(&peer).map_or(0, |session| session.gems);
         let dialog = shop::telephone_dialog(gems);
         self.send_variant(peer, &dialog, framing::NET_ID_BROADCAST, 0);

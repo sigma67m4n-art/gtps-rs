@@ -71,17 +71,20 @@ table lives in `crates/gtps-server/src/game/economy.rs` and is easy to edit:
 
 Item ids are best effort until an `items.dat` is available.
 
-## Telephone shop
+## Telephone service
 
-Locks are no longer sold from the gem store. Use the telephone (item `53785`),
-or type `/shop`, to open the lock shop:
+Locks are no longer sold from the gem store. Use the telephone (item `53785`)
+and dial the service number `53785` to reach the lock service:
 
-| lock | price | tax | total |
-| --- | --- | --- | --- |
-| Diamond Lock | 100,000 gems | 0 | 100,000 gems |
-| Blue Gem Lock | 10,000,000 gems | 500,000 | 10,500,000 gems |
+| option | cost |
+| --- | --- |
+| Diamond Lock | 100,000 gems |
+| Blue Gem Lock | 10,000,000 gems (+ 500,000 tax) |
+| Convert to Blue Gem Lock | 100 Diamond Locks |
 
-Tax is `5%` of every full `1,000,000` gems (`50,000` per million).
+Diamond Locks can only be bought. Blue Gem Locks can be bought or converted
+from `100` Diamond Locks. Tax is `5%` of every full `1,000,000` gems (`50,000`
+per million).
 
 ## Magplants
 

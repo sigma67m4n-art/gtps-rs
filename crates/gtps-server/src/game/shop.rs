@@ -3,8 +3,14 @@ use gtps_proto::{Text, Variant, VariantList};
 use crate::game::cheats::CheatState;
 use crate::game::locks::{self, LockKind, LockSpec, TELEPHONE_ITEM};
 
+pub const DIALOG_TELEPHONE_DIAL: &str = "telephone_dial";
 pub const DIALOG_TELEPHONE: &str = "telephone";
 pub const DIALOG_CHEATS: &str = "cheats";
+
+pub const SERVICE_NUMBER: &str = "53785";
+pub const BUY_DIAMOND: &str = "buy_diamond";
+pub const BUY_BLUE_GEM: &str = "buy_bluegem";
+pub const CONVERT_BLUE_GEM: &str = "convert_bluegem";
 
 fn with_commas(value: u64) -> String {
     let digits = value.to_string();
@@ -21,29 +27,48 @@ fn with_commas(value: u64) -> String {
 }
 
 #[must_use]
-pub fn telephone_dialog(gems: u32) -> VariantList {
+pub fn dial_dialog() -> VariantList {
     let mut body = String::new();
     body.push_str(&format!(
         "add_label_with_icon|big|`wTelephone``|left|{TELEPHONE_ITEM}|\n"
     ));
+    body.push_str("add_textbox|`wDial a number to reach a service.``|left|\n");
+    body.push_str("add_text_input|number|Number||12|\n");
+    body.push_str("add_button|call|`wCall``|\n");
+    body.push_str("add_button|close|`wClose``|\n");
+    body.push_str(&format!("end_dialog|{DIALOG_TELEPHONE_DIAL}|Call|\n"));
+
+    VariantList::new("OnDialogRequest").arg(Variant::String(body))
+}
+
+#[must_use]
+pub fn telephone_dialog(gems: u32) -> VariantList {
+    let diamond = locks::by_kind(LockKind::Diamond);
+    let blue_gem = locks::by_kind(LockKind::BlueGem);
+    let diamond_total = locks::total_with_tax(diamond.shop_price);
+    let blue_gem_total = locks::total_with_tax(blue_gem.shop_price);
+
+    let mut body = String::new();
     body.push_str(&format!(
-        "add_label_with_icon|small|`wLock Shop``|left|{TELEPHONE_ITEM}|\n"
+        "add_label_with_icon|big|`wLock Service``|left|{TELEPHONE_ITEM}|\n"
     ));
-    body.push_str("add_spacer|small|\n");
     body.push_str(&format!("add_textbox|`wYour Gems: `9{gems}``|left|\n"));
     body.push_str("add_spacer|small|\n");
-
-    for kind in [LockKind::Diamond, LockKind::BlueGem] {
-        let spec = locks::by_kind(kind);
-        let total = locks::total_with_tax(spec.shop_price);
-        body.push_str(&format!(
-            "add_button|{}|`w{} ``(`9{} Gems``)``|\n",
-            spec.kind.sale_button(),
-            spec.name,
-            with_commas(total)
-        ));
-    }
-
+    body.push_str(&format!(
+        "add_button|{BUY_DIAMOND}|`w{} ``(`9{} Gems``)``|\n",
+        diamond.name,
+        with_commas(diamond_total)
+    ));
+    body.push_str(&format!(
+        "add_button|{BUY_BLUE_GEM}|`w{} ``(`9{} Gems``)``|\n",
+        blue_gem.name,
+        with_commas(blue_gem_total)
+    ));
+    body.push_str(&format!(
+        "add_button|{CONVERT_BLUE_GEM}|`wConvert ``(`9{} Diamond Locks``)`w into a {}\n",
+        locks::DIAMOND_PER_BLUE_GEM,
+        blue_gem.name
+    ));
     body.push_str("add_spacer|small|\n");
     body.push_str("add_button|close|`wClose``|\n");
     body.push_str(&format!("end_dialog|{DIALOG_TELEPHONE}|Close|\n"));
@@ -74,8 +99,26 @@ pub fn cheats_dialog(cheats: &CheatState) -> VariantList {
 }
 
 #[must_use]
+pub fn is_service_number(number: &str) -> bool {
+    number.trim() == SERVICE_NUMBER
+}
+
+#[must_use]
 pub fn lock_button(text: &Text) -> Option<&'static LockSpec> {
-    locks::for_sale().find(|spec| text.has(spec.kind.sale_button()))
+    if text.has(BUY_DIAMOND) {
+        return Some(locks::by_kind(LockKind::Diamond));
+    }
+
+    if text.has(BUY_BLUE_GEM) {
+        return Some(locks::by_kind(LockKind::BlueGem));
+    }
+
+    None
+}
+
+#[must_use]
+pub fn wants_conversion(text: &Text) -> bool {
+    text.has(CONVERT_BLUE_GEM)
 }
 
 #[must_use]
@@ -86,7 +129,10 @@ pub fn cheat_button(text: &Text) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{cheat_button, cheats_dialog, lock_button, telephone_dialog, with_commas};
+    use super::{
+        cheat_button, cheats_dialog, is_service_number, lock_button, telephone_dialog,
+        wants_conversion, with_commas, BUY_BLUE_GEM, CONVERT_BLUE_GEM,
+    };
     use crate::game::cheats::CheatState;
     use crate::game::locks::LockKind;
     use gtps_proto::{Text, Variant};
@@ -106,10 +152,17 @@ mod tests {
     }
 
     #[test]
-    fn telephone_offers_taxed_locks() {
+    fn only_the_service_number_is_valid() {
+        assert!(is_service_number("53785"));
+        assert!(is_service_number(" 53785 "));
+        assert!(!is_service_number("00000"));
+    }
+
+    #[test]
+    fn telephone_offers_buy_and_convert() {
         let text = body(&telephone_dialog(500));
-        assert!(text.contains("buy_diamond"));
-        assert!(text.contains("buy_bluegem"));
+        assert!(text.contains(BUY_BLUE_GEM));
+        assert!(text.contains(CONVERT_BLUE_GEM));
         assert!(text.contains("100,000 Gems"));
         assert!(text.contains("10,500,000 Gems"));
         assert!(text.contains("end_dialog|telephone|"));
@@ -120,17 +173,21 @@ mod tests {
         let text = body(&cheats_dialog(&CheatState::default()));
         assert!(text.contains("cheat_auto_farm"));
         assert!(text.contains("cheat_bfg_mode"));
-        assert!(text.contains("cheat_auto_grab_remote"));
         assert!(text.contains("end_dialog|cheats|"));
     }
 
     #[test]
     fn dialog_return_maps_buttons() {
-        let telephone = Text::parse_str("dialog_name|telephone\nbuy_bluegem|\n");
+        let buy = Text::parse_str("dialog_name|telephone\nbuy_bluegem|\n");
         assert_eq!(
-            lock_button(&telephone).map(|spec| spec.kind),
+            lock_button(&buy).map(|spec| spec.kind),
             Some(LockKind::BlueGem)
         );
+        assert!(!wants_conversion(&buy));
+
+        let convert = Text::parse_str("dialog_name|telephone\nconvert_bluegem|\n");
+        assert!(wants_conversion(&convert));
+        assert!(lock_button(&convert).is_none());
 
         let cheats = Text::parse_str("dialog_name|cheats\ncheat_auto_farm|\n");
         assert_eq!(cheat_button(&cheats), Some("auto_farm"));

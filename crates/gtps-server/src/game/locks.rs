@@ -2,6 +2,7 @@ pub const TELEPHONE_ITEM: u16 = 53785;
 pub const RAYMAN_FIST: u16 = 13634;
 pub const FIST_RANGE: usize = 1;
 pub const RAYMAN_FIST_RANGE: usize = 3;
+pub const DIAMOND_PER_BLUE_GEM: u32 = 100;
 
 pub const MILLION: u64 = 1_000_000;
 pub const TAX_PER_MILLION: u64 = 50_000;
@@ -13,17 +14,6 @@ pub enum LockKind {
     BlueGem,
     Emerald,
     Royal,
-}
-
-impl LockKind {
-    #[must_use]
-    pub fn sale_button(self) -> &'static str {
-        match self {
-            Self::Diamond => "buy_diamond",
-            Self::BlueGem => "buy_bluegem",
-            _ => "",
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,10 +102,6 @@ pub fn total_with_tax(price: u64) -> u64 {
     price + tax(price)
 }
 
-pub fn for_sale() -> impl Iterator<Item = &'static LockSpec> {
-    LOCKS.iter().filter(|spec| spec.shop_price > 0)
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Magplant {
     pub tile: usize,
@@ -188,14 +174,13 @@ mod tests {
 
     #[test]
     fn only_diamond_and_blue_gem_are_sold() {
-        let sold: Vec<_> = super::for_sale().map(|spec| spec.kind).collect();
-        assert_eq!(sold, vec![LockKind::Diamond, LockKind::BlueGem]);
-        assert_eq!(
-            by_item(12886).map(|spec| spec.kind),
-            Some(LockKind::BlueGem)
-        );
-        assert_eq!(sold[0].sale_button(), "buy_diamond");
-        assert_eq!(sold[1].sale_button(), "buy_bluegem");
-        assert!(by_kind(LockKind::Royal).shop_price == 0);
+        let diamond = by_kind(LockKind::Diamond);
+        let blue_gem = by_kind(LockKind::BlueGem);
+
+        assert!(diamond.shop_price > 0);
+        assert!(blue_gem.shop_price > 0);
+        assert_eq!(by_item(12886).map(|spec| spec.kind), Some(LockKind::BlueGem));
+        assert_eq!(by_kind(LockKind::Royal).shop_price, 0);
+        assert_eq!(super::DIAMOND_PER_BLUE_GEM, 100);
     }
 }
